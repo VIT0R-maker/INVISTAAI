@@ -1,15 +1,12 @@
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 import { getSelicAtual } from './lib/bcb.js';
 import { buscarAcao, buscarFii } from './lib/scraper.js';
 import { grahamNumero, grahamRevisado, grahamTupiniquim, precoTetoBazin } from './lib/valuation.js';
-import { classifyAcao, classifyFii, perfisDisponiveis } from './lib/classify.js';
+import { classifyAcao, classifyFii, perfisAcoesDisponiveis, perfisFiiDisponiveis } from './lib/classify.js';
 import { formatCurrency, formatPercent, formNum, margemSeguranca } from './lib/format.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -50,7 +47,7 @@ function tratarErro(res, error, ticker, tipo) {
 }
 
 app.get('/api/perfis', (_req, res) => {
-  res.json({ perfis: perfisDisponiveis() });
+  res.json({ acoes: perfisAcoesDisponiveis(), fiis: perfisFiiDisponiveis() });
 });
 
 app.post('/api/acoes', async (req, res) => {
@@ -125,7 +122,7 @@ app.post('/api/acoes', async (req, res) => {
 });
 
 app.post('/api/fiis', async (req, res) => {
-  const { ticker } = req.body;
+  const { ticker, perfil = 'moderado' } = req.body;
   if (!ticker) return res.status(400).json({ error: 'Ticker não informado.' });
 
   try {
@@ -136,6 +133,9 @@ app.post('/api/fiis', async (req, res) => {
     const dyMath = dictNum['dividendyield'] ?? dictNum['dy12m'] ?? dictNum['dy'];
     const pvpMath = dictNum['pvp'];
     const vacanciaMath = dictNum['vacancia'];
+    const liquidezDiariaMath = dictNum['liquidezdiaria'];
+    const valorPatrimonialMath = dictNum['valorpatrimonial'];
+    const numeroCotistasMath = dictNum['numerodecotistas'];
 
     let ebn = '-';
     let ebnNum = null;
@@ -148,30 +148,40 @@ app.post('/api/fiis', async (req, res) => {
 
     res.json({
       ticker: ticker.toUpperCase(),
+      perfil,
 
+      // Sempre neutros: descritivos, não entram na Matriz Ontológica de qualidade
       cotacao: { value: dictRaw['cotacao'] || formatCurrency(cotacao), class: 'neutral' },
-      pvp: { value: dictRaw['pvp'] || formNum(pvpMath), class: classifyFii('pvp', pvpMath) },
-      dy: {
-        value: dictRaw['dividendyield'] || dictRaw['dy12m'] || formatPercent(dyMath),
-        class: classifyFii('dy', dyMath),
-      },
-
-      ebn: { value: ebn, class: ebnNum ? 'good' : 'neutral' },
+      ebn: { value: ebn, class: 'neutral' },
       vn: { value: vn, class: 'neutral' },
       ultimoRendimento: { value: dictRaw['ultimorendimento'] || '-', class: 'neutral' },
-
-      liquidezDiaria: { value: dictRaw['liquidezdiaria'] || '-', class: 'neutral' },
       variacao12m: { value: dictRaw['variacao12m'] || '-', class: 'neutral' },
       vpa: { value: dictRaw['valpatrimonialpcota'] || dictRaw['valorpatrimonialpcota'] || '-', class: 'neutral' },
-      valorPatrimonial: { value: dictRaw['valorpatrimonial'] || '-', class: 'neutral' },
-      vacancia: { value: dictRaw['vacancia'] || '-', class: classifyFii('vacancia', vacanciaMath) },
-      numeroCotistas: { value: dictRaw['numerodecotistas'] || '-', class: 'neutral' },
-
       segmento: { value: dictRaw['segmento'] || '-', class: 'neutral' },
       mandato: { value: dictRaw['mandato'] || '-', class: 'neutral' },
       tipoFundo: { value: dictRaw['tipodefundo'] || '-', class: 'neutral' },
       tipoGestao: { value: dictRaw['tipodegestao'] || '-', class: 'neutral' },
       taxaAdministracao: { value: dictRaw['taxadeadministracao'] || '-', class: 'neutral' },
+
+      // Avaliados de acordo com o perfil escolhido (conservador/moderado/arrojado)
+      pvp: { value: dictRaw['pvp'] || formNum(pvpMath), class: classifyFii(perfil, 'pvp', pvpMath) },
+      dy: {
+        value: dictRaw['dividendyield'] || dictRaw['dy12m'] || formatPercent(dyMath),
+        class: classifyFii(perfil, 'dy', dyMath),
+      },
+      liquidezDiaria: {
+        value: dictRaw['liquidezdiaria'] || '-',
+        class: classifyFii(perfil, 'liquidezDiaria', liquidezDiariaMath),
+      },
+      valorPatrimonial: {
+        value: dictRaw['valorpatrimonial'] || '-',
+        class: classifyFii(perfil, 'valorPatrimonial', valorPatrimonialMath),
+      },
+      vacancia: { value: dictRaw['vacancia'] || '-', class: classifyFii(perfil, 'vacancia', vacanciaMath) },
+      numeroCotistas: {
+        value: dictRaw['numerodecotistas'] || '-',
+        class: classifyFii(perfil, 'numeroCotistas', numeroCotistasMath),
+      },
     });
   } catch (error) {
     tratarErro(res, error, ticker, 'FII');

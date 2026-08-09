@@ -298,8 +298,6 @@
             document.getElementById('btn-fiis').classList.remove('active');
             document.getElementById(`btn-${mode}`).classList.add('active');
 
-            document.getElementById('perfilRow').style.visibility = mode === 'acoes' ? 'visible' : 'hidden';
-
             const placeholder = mode === 'acoes' ? 'ex: PETR4, BBAS3, WEGE3' : 'ex: MXRF11, HGLG11, KNCR11';
             document.getElementById('tickerInput').placeholder = `Digite o ticker (${placeholder})`;
             document.getElementById('tickerInput').value = '';
@@ -312,9 +310,9 @@
             ['conservador', 'moderado', 'arrojado'].forEach(p => {
                 document.getElementById(`perfil-${p}`).classList.toggle('active', p === perfil);
             });
-            // Se já há um resultado de ação na tela, refaz a busca com o novo perfil
+            // Se já há um resultado na tela, refaz a busca com o novo perfil
             const ticker = document.getElementById('tickerInput').value.trim();
-            if (ticker && currentMode === 'acoes' && document.querySelector('.results-header')) {
+            if (ticker && document.querySelector('.results-header')) {
                 buscar();
             }
         }
@@ -371,7 +369,7 @@
             container.innerHTML = `<div class="message">Aspirando dados de <strong>${ticker}</strong>... Aguarde um instante.</div>`;
             const baseUrl = 'https://invistaai.onrender.com'; // O link da sua API no Render
             const endpoint = currentMode === 'acoes' ? `${baseUrl}/api/acoes` : `${baseUrl}/api/fiis`;
-            const body = currentMode === 'acoes' ? { ticker, perfil: currentPerfil } : { ticker };
+            const body = { ticker, perfil: currentPerfil };
 
             try {
                 const response = await fetch(endpoint, {
@@ -444,12 +442,15 @@
                         </div>
                     `;
                 } else {
+                    const perfilTxtFii = data.perfil ? `Perfil de avaliação: <strong>${data.perfil}</strong>` : '';
+
                     container.innerHTML = `
                         <div class="results-header">Relatório do Fundo<span>${data.ticker}</span></div>
+                        <div class="selic-info">${perfilTxtFii}</div>
 
                         <div class="section-title">❄️ Efeito Bola de Neve (EBN)</div>
                         <div class="results-grid">
-                            ${createCard('Cotas p/ Bola de Neve (EBN)', data.ebn)}
+                            ${createCard('Cotas p/ Bola de Neve (EBN)', apenasValor(data.ebn))}
                             ${createCard('Valor Necessário (VN)', apenasValor(data.vn))}
                             ${createCard('Último Rendimento', apenasValor(data.ultimoRendimento))}
                         </div>
@@ -459,12 +460,12 @@
                             ${createCard('Cotação Atual', apenasValor(data.cotacao))}
                             ${createCard('P/VP', data.pvp)}
                             ${createCard('DY (12M)', data.dy)}
-                            ${createCard('Liquidez Diária', apenasValor(data.liquidezDiaria))}
+                            ${createCard('Liquidez Diária', data.liquidezDiaria)}
                             ${createCard('Variação (12M)', apenasValor(data.variacao12m))}
                             ${createCard('Val. Patr. p/ Cota', apenasValor(data.vpa))}
-                            ${createCard('Valor Patrimonial', apenasValor(data.valorPatrimonial))}
+                            ${createCard('Valor Patrimonial', data.valorPatrimonial)}
                             ${createCard('Vacância', data.vacancia)}
-                            ${createCard('Nº de Cotistas', apenasValor(data.numeroCotistas))}
+                            ${createCard('Nº de Cotistas', data.numeroCotistas)}
                         </div>
 
                         <div class="section-title">📋 Perfil do Fundo</div>
