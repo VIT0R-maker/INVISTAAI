@@ -369,7 +369,8 @@
 
             btn.disabled = true;
             container.innerHTML = `<div class="message">Aspirando dados de <strong>${ticker}</strong>... Aguarde um instante.</div>`;
-            const endpoint = currentMode === 'acoes' ? '/api/acoes' : '/api/fiis';
+            const baseUrl = 'https://invistaai.onrender.com'; // O link da sua API no Render
+            const endpoint = currentMode === 'acoes' ? `${baseUrl}/api/acoes` : `${baseUrl}/api/fiis`;
             const body = currentMode === 'acoes' ? { ticker, perfil: currentPerfil } : { ticker };
 
             try {
