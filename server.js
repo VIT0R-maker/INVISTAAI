@@ -15,7 +15,15 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Rota de Pulsação (Para o UptimeRobot saber que estamos vivos)
+app.get('/', (req, res) => {
+    res.json({ 
+        status: "Online 🟢", 
+        sistema: "Motor Quântico InvistaAI", 
+        mensagem: "API operando em capacidade máxima. Acesse a interface pelo GitHub Pages." 
+    });
+});
 
 // Monta o payload padrão de um card de "valor justo": preço formatado, classe good/bad
 // (comparando com a cotação) e a margem de segurança em % para mostrar como subtítulo no card.

@@ -77,7 +77,6 @@ scanner-ativos/
 │   ├── valuation.js      # Graham Número, Revisado, Tupiniquim, Bazin
 │   ├── classify.js       # bom/neutro/ruim, com 3 perfis para ações
 │   └── format.js         # parsing de texto raspado -> número, formatação pt-BR
-└── public/
     └── index.html         # front-end (tabs Ações/FIIs + seletor de perfil)
 ```
 
