@@ -60,7 +60,7 @@ app.post('/api/acoes', async (req, res) => {
     const cotacao = dict['cotacao'];
     const pl = dict['pl'];
     const pvp = dict['pvp'];
-    const dy = dict['dy'];
+    const dy = dict['dividendyield'] ?? dict['dy'];
     const payout = dict['payout'];
     const roe = dict['roe'];
     const roic = dict['roic'];
@@ -188,12 +188,6 @@ app.post('/api/fiis', async (req, res) => {
   }
 });
 
-// Se não estivermos na Vercel (rodando localmente), liga a porta normalmente
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-  app.listen(port, () => {
-    console.log(`🚀 Motor Quântico operando em http://localhost:${port}`);
-  });
-}
-
-// Exporta o app para a arquitetura Serverless da Vercel
-export default app;
+app.listen(port, () => {
+  console.log(`🚀 Servidor rodando em http://localhost:${port}`);
+});
