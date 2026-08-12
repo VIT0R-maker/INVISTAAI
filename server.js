@@ -38,6 +38,16 @@ function cardValorJusto(cotacao, valorJusto) {
 
 function tratarErro(res, error, ticker, tipo) {
   console.error(`Erro ${tipo}:`, error.message);
+
+  if (error.possivelBloqueio) {
+    return res.status(502).json({
+      error:
+        'O investidor10 recusou ou limitou a requisição (possível bloqueio de IP do servidor). ' +
+        'Tente novamente em alguns minutos — se persistir, o IP do seu provedor de hospedagem pode ' +
+        'estar sendo limitado pelo site de origem.',
+    });
+  }
+
   const status = error.response?.status === 404 ? 404 : 502;
   const msg =
     status === 404

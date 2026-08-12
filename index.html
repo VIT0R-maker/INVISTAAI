@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scanner de Ativos Fundamentalista</title>
+    <title>InvistaAI — Scanner Fundamentalista</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
         :root {
-            --bg-color: #f4f7fa;
+            --bg: #f4f7fa;
             --card-bg: #ffffff;
             --primary: #0052cc;
             --primary-hover: #003b91;
@@ -20,9 +20,11 @@
             --neutral: #6c757d;
         }
 
+        * { box-sizing: border-box; }
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
+            background-color: var(--bg);
             color: var(--text-main);
             margin: 0;
             padding: 2rem 1rem;
@@ -34,6 +36,14 @@
         .container {
             width: 100%;
             max-width: 1000px;
+        }
+
+        h1.title {
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0 0 20px;
         }
 
         .header-tabs {
@@ -59,7 +69,7 @@
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .tab-btn.active, .tab-btn:hover {
@@ -142,20 +152,14 @@
             transition: background 0.3s;
         }
 
-        .search-box button:hover {
-            background-color: var(--primary-hover);
-        }
-
-        .search-box button:disabled {
-            background-color: var(--border);
-            cursor: not-allowed;
-        }
+        .search-box button:hover { background-color: var(--primary-hover); }
+        .search-box button:disabled { background-color: var(--border); cursor: not-allowed; }
 
         .results-header {
             text-align: center;
             font-size: 1.8rem;
             color: var(--text-main);
-            margin-bottom: 10px;
+            margin-bottom: 4px;
             font-weight: 500;
         }
 
@@ -181,14 +185,11 @@
             margin: 40px 0 20px;
             border-bottom: 2px solid var(--border);
             padding-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
 
         .results-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
             gap: 20px;
             margin-bottom: 20px;
         }
@@ -206,7 +207,7 @@
         }
 
         .card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-3px);
             box-shadow: 0 8px 25px rgba(0, 30, 80, 0.08);
         }
 
@@ -215,12 +216,78 @@
         .card.neutral { border-left-color: var(--border); }
 
         .card-title {
-            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.88rem;
             color: var(--text-muted);
             font-weight: 600;
             margin-bottom: 15px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.3px;
+        }
+
+        .help-icon {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--border);
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            font-weight: 700;
+            cursor: help;
+            flex-shrink: 0;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .help-icon:hover, .help-icon:focus {
+            background: var(--primary);
+            color: #fff;
+            outline: none;
+        }
+
+        .help-tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            background: var(--text-main);
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: 400;
+            line-height: 1.4;
+            text-transform: none;
+            letter-spacing: 0;
+            padding: 10px 12px;
+            border-radius: 8px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .help-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--text-main);
+        }
+
+        .help-icon:hover .help-tooltip,
+        .help-icon:focus .help-tooltip {
+            opacity: 1;
+            visibility: visible;
         }
 
         .card-body {
@@ -235,7 +302,8 @@
             font-weight: 700;
             color: var(--text-main);
             text-align: right;
-            word-break: break-word;
+            overflow-wrap: break-word;
+            word-break: normal;
         }
 
         .card-caption {
@@ -258,11 +326,17 @@
             border: 1px solid var(--border);
             box-shadow: 0 4px 15px rgba(0, 30, 80, 0.03);
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            .card, .tab-btn, .perfil-btn, .help-tooltip { transition: none; }
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
+
+        <h1 class="title">InvistaAI</h1>
 
         <div class="header-tabs">
             <button class="tab-btn active" onclick="setMode('acoes')" id="btn-acoes">Ações</button>
@@ -292,6 +366,48 @@
         let currentMode = 'acoes';
         let currentPerfil = 'moderado';
 
+        // Explicações breves de cada indicador — aparecem ao passar o mouse (ou focar via
+        // teclado) no ícone "?" ao lado do nome do card.
+        const TOOLTIPS = {
+            'Cotação Atual': 'Preço atual de negociação na bolsa.',
+            'Valor Justo (Graham Padrão)': 'Estimativa de valor justo pela fórmula clássica de Graham, cruzando lucro e patrimônio por ação.',
+            'Valor Justo (Graham Rev.)': 'Versão revisada da fórmula de Graham, que também considera o crescimento esperado e a taxa de juros atual.',
+            'Valor Justo (Graham Tupiniquim)': 'Adaptação da fórmula de Graham com um multiplicador mais conservador, pensada para o patamar de juros no Brasil.',
+            'Preço Teto (Bazin 6%)': 'Preço máximo que, dado o histórico de dividendos, ainda garante um yield mínimo de 6% ao ano.',
+            'Preço Teto (Bazin 8%)': 'Preço máximo que, dado o histórico de dividendos, ainda garante um yield mínimo de 8% ao ano.',
+            'P/L': 'Quantos anos de lucro atual seriam necessários para "pagar" o preço da ação. Quanto menor, mais barata ela parece frente ao lucro.',
+            'P/VP': 'Compara o preço com o valor patrimonial por ação. Próximo de 1 indica preço próximo ao valor contábil.',
+            'DY (12M)': 'Percentual de dividendos pagos nos últimos 12 meses em relação à cotação atual.',
+            'Payout': 'Fatia do lucro distribuída como dividendos e JCP. Quanto maior, menor a parte reinvestida no negócio.',
+            'ROE': 'Retorno gerado sobre o patrimônio dos acionistas — mede a eficiência em transformar capital próprio em lucro.',
+            'ROIC': 'Retorno sobre o capital total investido na operação, incluindo dívida.',
+            'ROA': 'Retorno gerado sobre o total de ativos da empresa.',
+            'Margem Bruta': 'Percentual da receita que sobra após descontar apenas o custo direto dos produtos ou serviços vendidos.',
+            'Margem EBITDA': 'Percentual da receita convertido em caixa operacional, antes de juros, impostos, depreciação e amortização.',
+            'Margem Líquida': 'Percentual da receita que sobra como lucro depois de todas as despesas.',
+            'Dív. Líq./Patrimônio': 'Compara o endividamento líquido com o patrimônio. Quanto menor, menor a dependência de capital de terceiros.',
+            'Dív. Líq./EBITDA': 'Em quantos anos a empresa quitaria sua dívida líquida usando a geração de caixa operacional atual.',
+            'Liquidez Corrente': 'Capacidade de pagar obrigações de curto prazo com os ativos de curto prazo. Acima de 1 costuma indicar folga.',
+            'LPA (Lucro por Ação)': 'Lucro líquido dividido pelo número de ações — quanto a empresa lucrou por ação no período.',
+            'VPA (Valor Patr. Ação)': 'Patrimônio líquido dividido pelo número de ações — o valor contábil de cada ação.',
+            'CAGR Crescimento 5A': 'Crescimento médio anual do lucro nos últimos 5 anos.',
+            'Giro Ativos': 'Quanto a empresa gera de receita para cada real investido em ativos — mede a eficiência no uso dos recursos.',
+            'Cotas p/ Bola de Neve (EBN)': 'Número de cotas necessárias para que o próprio rendimento mensal já compre uma cota nova, sem novo aporte.',
+            'Valor Necessário (VN)': 'Quanto capital, ao preço atual da cota, seria preciso para atingir a bola de neve.',
+            'Último Rendimento': 'Valor por cota pago no último mês.',
+            'Liquidez Diária': 'Volume médio negociado por dia — indica a facilidade de comprar ou vender sem afetar o preço.',
+            'Variação (12M)': 'Variação da cotação nos últimos 12 meses.',
+            'Val. Patr. p/ Cota': 'Valor patrimonial do fundo dividido pelo número de cotas.',
+            'Valor Patrimonial': 'Patrimônio líquido total do fundo.',
+            'Vacância': 'Percentual da área ou receita potencial do fundo que está sem inquilino.',
+            'Nº de Cotistas': 'Quantidade de investidores que possuem cotas do fundo.',
+            'Segmento': 'Tipo de ativo em que o fundo investe (lajes corporativas, shoppings, logística, papel, etc.).',
+            'Mandato': 'Estratégia de atuação do fundo — desenvolvimento, renda, híbrido, entre outras.',
+            'Tipo de Fundo': 'Classificação regulatória do fundo (tijolo, papel, fundo de fundos, híbrido).',
+            'Tipo de Gestão': 'Se as decisões de investimento do fundo são ativas ou passivas (indexadas a um benchmark).',
+            'Taxa de Admin.': 'Percentual cobrado anualmente pela gestora sobre o patrimônio do fundo.'
+        };
+
         function setMode(mode) {
             currentMode = mode;
             document.getElementById('btn-acoes').classList.remove('active');
@@ -310,7 +426,6 @@
             ['conservador', 'moderado', 'arrojado'].forEach(p => {
                 document.getElementById(`perfil-${p}`).classList.toggle('active', p === perfil);
             });
-            // Se já há um resultado na tela, refaz a busca com o novo perfil
             const ticker = document.getElementById('tickerInput').value.trim();
             if (ticker && document.querySelector('.results-header')) {
                 buscar();
@@ -334,13 +449,19 @@
             return `<div class="card-caption ${abaixo ? 'good' : 'bad'}">${texto}</div>`;
         }
 
+        function helpBadge(title) {
+            const texto = TOOLTIPS[title];
+            if (!texto) return '';
+            return `<span class="help-icon" tabindex="0">?<span class="help-tooltip">${texto}</span></span>`;
+        }
+
         function createCard(title, dataObj) {
             const val = dataObj?.value || '-';
             const cls = dataObj?.class || 'neutral';
             const caption = dataObj?.margem !== undefined ? formatMargem(dataObj.margem) : '';
             return `
                 <div class="card ${cls}">
-                    <div class="card-title">${title}</div>
+                    <div class="card-title">${title}${helpBadge(title)}</div>
                     <div class="card-body">
                         ${getIcon(cls)}
                         <span class="card-value">${val}</span>
@@ -387,14 +508,14 @@
 
                 if (currentMode === 'acoes') {
                     const selicTxt = data.selicUtilizada != null
-                        ? `Selic utilizada nos cálculos de valor justo: <strong>${data.selicUtilizada.toString().replace('.', ',')}%</strong> (fonte: Banco Central) · Perfil: <strong>${data.perfil}</strong>`
+                        ? `Selic utilizada nos cálculos: <strong>${data.selicUtilizada.toString().replace('.', ',')}%</strong> (Banco Central) · Perfil: <strong>${data.perfil}</strong>`
                         : '';
 
                     container.innerHTML = `
                         <div class="results-header">Relatório Fundamentalista<span>${data.ticker}</span></div>
                         <div class="selic-info">${selicTxt}</div>
 
-                        <div class="section-title">⚖️ Valuation (Preço Justo)</div>
+                        <div class="section-title">Valuation (Preço Justo)</div>
                         <div class="results-grid">
                             ${createCard('Cotação Atual', apenasValor(data.cotacao))}
                             ${createCard('Valor Justo (Graham Padrão)', data.valorGrahamPadrao)}
@@ -404,19 +525,19 @@
                             ${createCard('Preço Teto (Bazin 8%)', data.precoTeto8)}
                         </div>
 
-                        <div class="section-title">🏷️ Múltiplos de Preço</div>
+                        <div class="section-title">Múltiplos de Preço</div>
                         <div class="results-grid">
                             ${createCard('P/L', data.pl)}
                             ${createCard('P/VP', data.pvp)}
                         </div>
 
-                        <div class="section-title">💰 Dividendos & Proventos</div>
+                        <div class="section-title">Dividendos &amp; Proventos</div>
                         <div class="results-grid">
                             ${createCard('DY (12M)', data.dy)}
                             ${createCard('Payout', apenasValor(data.payout))}
                         </div>
 
-                        <div class="section-title">📈 Indicadores de Rentabilidade</div>
+                        <div class="section-title">Indicadores de Rentabilidade</div>
                         <div class="results-grid">
                             ${createCard('ROE', data.roe)}
                             ${createCard('ROIC', apenasValor(data.roic))}
@@ -426,14 +547,14 @@
                             ${createCard('Margem Líquida', data.margemLiquida)}
                         </div>
 
-                        <div class="section-title">🏦 Endividamento & Liquidez</div>
+                        <div class="section-title">Endividamento &amp; Liquidez</div>
                         <div class="results-grid">
                             ${createCard('Dív. Líq./Patrimônio', data.divLiqPatrimonio)}
                             ${createCard('Dív. Líq./EBITDA', apenasValor(data.divLiqEbitda))}
                             ${createCard('Liquidez Corrente', data.liquidezCorrente)}
                         </div>
 
-                        <div class="section-title">📊 Outros Indicadores</div>
+                        <div class="section-title">Outros Indicadores</div>
                         <div class="results-grid">
                             ${createCard('LPA (Lucro por Ação)', apenasValor(data.lpa))}
                             ${createCard('VPA (Valor Patr. Ação)', apenasValor(data.vpa))}
@@ -448,14 +569,14 @@
                         <div class="results-header">Relatório do Fundo<span>${data.ticker}</span></div>
                         <div class="selic-info">${perfilTxtFii}</div>
 
-                        <div class="section-title">❄️ Efeito Bola de Neve (EBN)</div>
+                        <div class="section-title">Efeito Bola de Neve (EBN)</div>
                         <div class="results-grid">
                             ${createCard('Cotas p/ Bola de Neve (EBN)', apenasValor(data.ebn))}
                             ${createCard('Valor Necessário (VN)', apenasValor(data.vn))}
                             ${createCard('Último Rendimento', apenasValor(data.ultimoRendimento))}
                         </div>
 
-                        <div class="section-title">🏢 Indicadores do Fundo</div>
+                        <div class="section-title">Indicadores do Fundo</div>
                         <div class="results-grid">
                             ${createCard('Cotação Atual', apenasValor(data.cotacao))}
                             ${createCard('P/VP', data.pvp)}
@@ -468,7 +589,7 @@
                             ${createCard('Nº de Cotistas', data.numeroCotistas)}
                         </div>
 
-                        <div class="section-title">📋 Perfil do Fundo</div>
+                        <div class="section-title">Perfil do Fundo</div>
                         <div class="results-grid">
                             ${createCard('Segmento', apenasValor(data.segmento))}
                             ${createCard('Mandato', apenasValor(data.mandato))}
@@ -479,7 +600,7 @@
                     `;
                 }
             } catch (error) {
-                container.innerHTML = `<div class="message" style="color: var(--bad); border-color: #ef9a9a;">Erro ao conectar com o servidor local. Verifique o terminal.</div>`;
+                container.innerHTML = `<div class="message" style="color: var(--bad); border-color: #ef9a9a;">Erro ao conectar com o servidor. Verifique se a API do Render está no ar.</div>`;
             } finally {
                 btn.disabled = false;
             }
