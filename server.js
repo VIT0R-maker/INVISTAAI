@@ -198,6 +198,12 @@ app.post('/api/fiis', async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`🚀 Servidor rodando em http://localhost:${port}`);
-});
+// Se não estivermos na Vercel (rodando localmente), liga a porta normalmente
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`🚀 Motor Quântico operando em http://localhost:${port}`);
+  });
+}
+
+// Exporta o app para a arquitetura Serverless da Vercel
+export default app;
