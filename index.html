@@ -263,17 +263,15 @@
             letter-spacing: 0.3px;
         }
 
-        /* --- ESTILOS DOS TOOLTIPS RESGATADOS --- */
-        .help-icon {
+        /* --- ESTILOS DOS TOOLTIPS RESGATADOS E AMPLIADOS --- */
+        .help-icon, .status-badge {
             position: relative;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 15px;
-            height: 15px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
-            background: var(--border);
-            color: var(--text-muted);
             font-size: 0.65rem;
             font-weight: 700;
             cursor: help;
@@ -282,11 +280,24 @@
             letter-spacing: 0;
         }
 
+        .help-icon {
+            background: var(--border);
+            color: var(--text-muted);
+        }
+
         .help-icon:hover, .help-icon:focus {
             background: var(--primary);
             color: #fff;
             outline: none;
         }
+
+        .status-badge {
+            font-size: 0.7rem;
+            margin-left: 4px;
+        }
+
+        .status-badge.good { background: var(--good); color: white; }
+        .status-badge.bad { background: var(--bad); color: white; }
 
         .help-tooltip {
             position: absolute;
@@ -322,14 +333,16 @@
         }
 
         .help-icon:hover .help-tooltip,
-        .help-icon:focus .help-tooltip {
+        .help-icon:focus .help-tooltip,
+        .status-badge:hover .help-tooltip,
+        .status-badge:focus .help-tooltip {
             opacity: 1;
             visibility: visible;
         }
         /* --------------------------------------- */
 
         .card-body { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
-        .card-value { font-size: 1.4rem; font-weight: 700; color: var(--text-main); text-align: right; }
+        .card-value { font-size: 1.4rem; font-weight: 700; color: var(--text-main); text-align: right; overflow-wrap: break-word; word-break: normal; }
 
         .card-caption { text-align: right; font-size: 0.78rem; font-weight: 600; margin-top: 6px; }
         .card-caption.good { color: var(--good); }
@@ -427,7 +440,7 @@
         let currentMode = 'acoes';
         let currentPerfil = 'moderado';
 
-        // --- DICIONÁRIO DE TOOLTIPS RESGATADO ---
+        // 1. DICIONÁRIO COMPLETO DE DÚVIDAS (?)
         const TOOLTIPS = {
             'Cotação Atual': 'Preço atual de negociação na bolsa.',
             'Valor Justo (Graham Padrão)': 'Estimativa de valor justo pela fórmula clássica de Graham, cruzando lucro e patrimônio por ação.',
@@ -468,7 +481,71 @@
             'Taxa de Admin.': 'Percentual cobrado anualmente pela gestora sobre o patrimônio do fundo.'
         };
 
-        // 1. OUVINTE DE ESTADO (Logado vs Deslogado)
+        // 2. DICIONÁRIO DO MENTOR INTELIGENTE (✓ e ✗)
+        function getStatusReason(title, cls, mode, perfil) {
+            if (cls === 'neutral') return '';
+            
+            const explanations = {
+                'DY (12M)': {
+                    conservador: { good: 'Forte geração de renda passiva (≥ 6%), essencial para o perfil.', bad: 'Renda baixa (< 4%). Não compensa o risco para perfil conservador.' },
+                    default: { good: 'Bom pagamento de dividendos.', bad: 'Baixa distribuição de lucros.' }
+                },
+                'P/L': {
+                    conservador: { good: 'Ação barata (≤ 10). Alta margem de segurança.', bad: 'Ação cara (> 15). Risco elevado para o perfil.' },
+                    arrojado: { good: 'Preço aceitável considerando potencial de crescimento.', bad: 'Múltiplo muito esticado (> 30). Risco de bolha.' },
+                    default: { good: 'Valuation atrativo.', bad: 'Ação cara frente aos lucros atuais.' }
+                },
+                'P/VP': {
+                    conservador: { good: 'Negociada próxima ou abaixo do valor patrimonial.', bad: 'Ágio alto (> 2.0). Reduz a segurança.' },
+                    arrojado: { good: 'Ágio aceitável para empresas de alto ROE.', bad: 'Extremamente cara frente ao patrimônio (> 5.0).' },
+                    default: { good: 'Desconto patrimonial saudável.', bad: 'Muito acima do valor contábil.' }
+                },
+                'ROE': {
+                    arrojado: { good: 'Altíssima eficiência (≥ 15%). Motor de multiplicação de capital.', bad: 'Baixa rentabilidade (< 10%). Ruim para teses de crescimento.' },
+                    default: { good: 'Boa rentabilidade patrimonial.', bad: 'Empresa ineficiente em gerar valor.' }
+                },
+                'Payout': {
+                    conservador: { good: 'Distribui a maior parte do lucro. Foco em renda.', bad: 'Retém muitos lucros. Fere a tese de dividendos.' },
+                    arrojado: { good: 'Retém lucros para financiar crescimento exponencial.', bad: 'Distribui demais, matando o potencial de expansão.' },
+                    default: { good: 'Equilíbrio saudável na distribuição.', bad: 'Desbalanceado para o perfil.' }
+                },
+                'Dív. Líq./EBITDA': {
+                    conservador: { good: 'Endividamento irrisório. Empresa blindada contra crises.', bad: 'Alavancagem perigosa para o perfil.' },
+                    arrojado: { good: 'Alavancagem controlada financiando crescimento.', bad: 'Risco de insolvência elevado (> 4.0).' },
+                    default: { good: 'Dívida sob controle.', bad: 'Endividamento preocupante.' }
+                },
+                'Dív. Líq./Patrimônio': {
+                    conservador: { good: 'Baixa dependência de bancos (≤ 0.5).', bad: 'Capital de terceiros alto demais (> 0.8).' },
+                    arrojado: { good: 'Uso inteligente de dívida.', bad: 'Passivo asfixiando o patrimônio (> 2.0).' },
+                    default: { good: 'Estrutura de capital saudável.', bad: 'Passivo elevado.' }
+                },
+                'CAGR Crescimento 5A': {
+                    conservador: { good: 'Crescimento consistente. Protege contra inflação.', bad: 'Lucros estagnados ou caindo.' },
+                    arrojado: { good: 'Crescimento acelerado (≥ 15%). Gatilho de valorização.', bad: 'Crescimento insuficiente para tese arrojada.' },
+                    default: { good: 'Bom ritmo de expansão.', bad: 'Perdendo tração no lucro.' }
+                },
+                'Vacância': {
+                    conservador: { good: 'Imóveis ocupados. Geração de renda previsível.', bad: 'Alta desocupação. Risco de queda nos proventos.' },
+                    default: { good: 'Vacância controlada.', bad: 'Portfólio muito vazio.' }
+                }
+            };
+
+            const f_p_vp_fiis = {
+                conservador: { good: 'Comprando fundo a preço justo (≤ 1.0).', bad: 'Alerta! Ágio (> 1.05) ou "Value Trap" (< 0.80) com riscos ocultos graves.' },
+                default: { good: 'Preço atrativo frente aos ativos.', bad: 'Pagando muito caro pelas cotas (> 1.10).' }
+            };
+
+            let expl = explanations[title];
+            if (title === 'P/VP' && mode === 'fiis') expl = f_p_vp_fiis;
+
+            if (!expl) return '';
+            const perfExpl = expl[perfil] || expl['default'];
+            if (!perfExpl) return '';
+            
+            return perfExpl[cls] || '';
+        }
+
+        // 3. OUVINTE DE ESTADO E AUTENTICAÇÃO
         onAuthStateChanged(auth, async (user) => {
             const btnAuth = document.getElementById('btn-auth');
             if (user) {
@@ -493,7 +570,7 @@
             }
         });
 
-        // 2. FUNÇÕES DE INTERFACE EXPORTADAS PRO HTML
+        // 4. FUNÇÕES DE INTERFACE E ABAS
         window.setMode = (mode) => {
             currentMode = mode;
             document.getElementById('btn-acoes').classList.remove('active');
@@ -525,7 +602,7 @@
             if (ticker && document.querySelector('.results-header')) window.buscar();
         };
 
-        // 3. MÁGICA DA ESTRELINHA E FAVORITOS
+        // 5. FAVORITOS E AUTO-PESQUISA
         window.toggleFavorito = async (btn, ticker) => {
             if (!currentUser) {
                 alert("Você precisa estar logado para salvar favoritos!");
@@ -575,18 +652,14 @@
             `;
         }
 
-        // NOVO: A lógica de auto-pesquisa perfeita
         window.pesquisarFavorito = (ticker) => {
-            // Se terminar em '11', provavelmente é FII, se não é Ação
             const modoSugerido = ticker.endsWith('11') ? 'fiis' : 'acoes';
             window.setMode(modoSugerido);
-            
-            // Preenche o input e força a pesquisa
             document.getElementById('tickerInput').value = ticker;
             window.buscar();
         };
 
-        // 4. MOTOR QUÂNTICO (Buscador + Tooltips + Ícones)
+        // 6. MOTOR DE RENDERIZAÇÃO
         function getIcon(cls) {
             if (cls === 'good') {
                 return `<svg style="color:var(--good); min-width: 24px;" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
@@ -597,16 +670,10 @@
             return ``;
         }
 
-        function helpBadge(title) {
-            const texto = TOOLTIPS[title];
-            if (!texto) return '';
-            return `<span class="help-icon" tabindex="0">?<span class="help-tooltip">${texto}</span></span>`;
-        }
-
         function formatMargem(margem) {
             if (margem === null || margem === undefined || isNaN(margem)) return '';
             const abaixo = margem >= 0;
-            const texto = `${Math.abs(margem).toFixed(1).replace('.', ',')}% ${abaixo ? 'abaixo' : 'acima'} do valor justo`;
+            const texto = `${Math.abs(margem).toFixed(1).replace('.', ',')}% ${abaixo ? 'abaixo' : 'acima'} do justo`;
             return `<div class="card-caption ${abaixo ? 'good' : 'bad'}">${texto}</div>`;
         }
 
@@ -614,9 +681,27 @@
             const val = dataObj?.value || '-';
             const cls = dataObj?.class || 'neutral';
             const caption = dataObj?.margem !== undefined ? formatMargem(dataObj.margem) : '';
+            
+            // O "?" de dúvida original
+            const textoDuvida = TOOLTIPS[title] || '';
+            const helpHTML = textoDuvida ? `<span class="help-icon" tabindex="0">?<span class="help-tooltip">${textoDuvida}</span></span>` : '';
+
+            // O novo "✓" ou "✗" do Mentor Inteligente
+            let statusBadgeHTML = '';
+            if (cls === 'good' || cls === 'bad') {
+                const icon = cls === 'good' ? '✓' : '✗';
+                const reason = getStatusReason(title, cls, currentMode, currentPerfil);
+                if (reason) {
+                    const statusTitle = cls === 'good' ? 'Sinal Positivo' : 'Sinal de Alerta';
+                    statusBadgeHTML = `<span class="status-badge ${cls}" tabindex="0">${icon}<span class="help-tooltip"><strong>${statusTitle}</strong><br>${reason}</span></span>`;
+                } else {
+                    statusBadgeHTML = `<span class="status-badge ${cls}">${icon}</span>`;
+                }
+            }
+
             return `
                 <div class="card ${cls}">
-                    <div class="card-title">${title}${helpBadge(title)}</div>
+                    <div class="card-title">${title}${helpHTML}${statusBadgeHTML}</div>
                     <div class="card-body">
                         ${getIcon(cls)}
                         <span class="card-value">${val}</span>
@@ -687,13 +772,13 @@
                         <div class="section-title">Dividendos & Proventos</div>
                         <div class="results-grid">
                             ${createCard('DY (12M)', data.dy)}
-                            ${createCard('Payout', apenasValor(data.payout))}
+                            ${createCard('Payout', data.payout)}
                         </div>
 
                         <div class="section-title">Indicadores de Rentabilidade</div>
                         <div class="results-grid">
                             ${createCard('ROE', data.roe)}
-                            ${createCard('ROIC', apenasValor(data.roic))}
+                            ${createCard('ROIC', data.roic)}
                             ${createCard('ROA', apenasValor(data.roa))}
                             ${createCard('Margem Bruta', apenasValor(data.margemBruta))}
                             ${createCard('Margem EBITDA', apenasValor(data.margemEbitda))}
@@ -703,7 +788,7 @@
                         <div class="section-title">Endividamento & Liquidez</div>
                         <div class="results-grid">
                             ${createCard('Dív. Líq./Patrimônio', data.divLiqPatrimonio)}
-                            ${createCard('Dív. Líq./EBITDA', apenasValor(data.divLiqEbitda))}
+                            ${createCard('Dív. Líq./EBITDA', data.divLiqEbitda)}
                             ${createCard('Liquidez Corrente', data.liquidezCorrente)}
                         </div>
 
@@ -711,7 +796,7 @@
                         <div class="results-grid">
                             ${createCard('LPA (Lucro por Ação)', apenasValor(data.lpa))}
                             ${createCard('VPA (Valor Patr. Ação)', apenasValor(data.vpa))}
-                            ${createCard('CAGR Crescimento 5A', apenasValor(data.cagr5a))}
+                            ${createCard('CAGR Crescimento 5A', data.cagr5a)}
                             ${createCard('Giro Ativos', apenasValor(data.giroAtivos))}
                         </div>
                     `;
