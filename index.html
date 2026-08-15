@@ -263,6 +263,71 @@
             letter-spacing: 0.3px;
         }
 
+        /* --- ESTILOS DOS TOOLTIPS RESGATADOS --- */
+        .help-icon {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--border);
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            font-weight: 700;
+            cursor: help;
+            flex-shrink: 0;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .help-icon:hover, .help-icon:focus {
+            background: var(--primary);
+            color: #fff;
+            outline: none;
+        }
+
+        .help-tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            background: var(--text-main);
+            color: #fff;
+            font-size: 0.78rem;
+            font-weight: 400;
+            line-height: 1.4;
+            text-transform: none;
+            letter-spacing: 0;
+            padding: 10px 12px;
+            border-radius: 8px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .help-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: var(--text-main);
+        }
+
+        .help-icon:hover .help-tooltip,
+        .help-icon:focus .help-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+        /* --------------------------------------- */
+
         .card-body { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
         .card-value { font-size: 1.4rem; font-weight: 700; color: var(--text-main); text-align: right; }
 
@@ -306,7 +371,6 @@
             <div class="logo-icon">📈</div>
             Invista+
         </a>
-        <!-- Botão Dinâmico: Se logado = Sair, se deslogado = Entrar -->
         <button class="btn-auth" id="btn-auth" onclick="window.location.href='login.html'">Entrar</button>
     </header>
 
@@ -344,7 +408,7 @@
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 
-        // COLOQUE SUA CHAVE AQUI!
+        // SUA CHAVE DA API AQUI
         const firebaseConfig = {
             apiKey: "AIzaSyDWQVHJPSuEx0V_S2KfI2y--3N8oYJqJ0M", 
             authDomain: "invistamais.firebaseapp.com",
@@ -363,6 +427,47 @@
         let currentMode = 'acoes';
         let currentPerfil = 'moderado';
 
+        // --- DICIONÁRIO DE TOOLTIPS RESGATADO ---
+        const TOOLTIPS = {
+            'Cotação Atual': 'Preço atual de negociação na bolsa.',
+            'Valor Justo (Graham Padrão)': 'Estimativa de valor justo pela fórmula clássica de Graham, cruzando lucro e patrimônio por ação.',
+            'Valor Justo (Graham Rev.)': 'Versão revisada da fórmula de Graham, que também considera o crescimento esperado e a taxa de juros atual.',
+            'Valor Justo (Graham Tupiniquim)': 'Adaptação da fórmula de Graham com um multiplicador mais conservador, pensada para o patamar de juros no Brasil.',
+            'Preço Teto (Bazin 6%)': 'Preço máximo que, dado o histórico de dividendos, ainda garante um yield mínimo de 6% ao ano.',
+            'Preço Teto (Bazin 8%)': 'Preço máximo que, dado o histórico de dividendos, ainda garante um yield mínimo de 8% ao ano.',
+            'P/L': 'Quantos anos de lucro atual seriam necessários para "pagar" o preço da ação. Quanto menor, mais barata ela parece frente ao lucro.',
+            'P/VP': 'Compara o preço com o valor patrimonial por ação. Próximo de 1 indica preço próximo ao valor contábil.',
+            'DY (12M)': 'Percentual de dividendos pagos nos últimos 12 meses em relação à cotação atual.',
+            'Payout': 'Fatia do lucro distribuída como dividendos e JCP. Quanto maior, menor a parte reinvestida no negócio.',
+            'ROE': 'Retorno gerado sobre o patrimônio dos acionistas — mede a eficiência em transformar capital próprio em lucro.',
+            'ROIC': 'Retorno sobre o capital total investido na operação, incluindo dívida.',
+            'ROA': 'Retorno gerado sobre o total de ativos da empresa.',
+            'Margem Bruta': 'Percentual da receita que sobra após descontar apenas o custo direto dos produtos ou serviços vendidos.',
+            'Margem EBITDA': 'Percentual da receita convertido em caixa operacional, antes de juros, impostos, depreciação e amortização.',
+            'Margem Líquida': 'Percentual da receita que sobra como lucro depois de todas as despesas.',
+            'Dív. Líq./Patrimônio': 'Compara o endividamento líquido com o patrimônio. Quanto menor, menor a dependência de capital de terceiros.',
+            'Dív. Líq./EBITDA': 'Em quantos anos a empresa quitaria sua dívida líquida usando a geração de caixa operacional atual.',
+            'Liquidez Corrente': 'Capacidade de pagar obrigações de curto prazo com os ativos de curto prazo. Acima de 1 costuma indicar folga.',
+            'LPA (Lucro por Ação)': 'Lucro líquido dividido pelo número de ações — quanto a empresa lucrou por ação no período.',
+            'VPA (Valor Patr. Ação)': 'Patrimônio líquido dividido pelo número de ações — o valor contábil de cada ação.',
+            'CAGR Crescimento 5A': 'Crescimento médio anual do lucro nos últimos 5 anos.',
+            'Giro Ativos': 'Quanto a empresa gera de receita para cada real investido em ativos — mede a eficiência no uso dos recursos.',
+            'Cotas p/ Bola de Neve (EBN)': 'Número de cotas necessárias para que o próprio rendimento mensal já compre uma cota nova, sem novo aporte.',
+            'Valor Necessário (VN)': 'Quanto capital, ao preço atual da cota, seria preciso para atingir a bola de neve.',
+            'Último Rendimento': 'Valor por cota pago no último mês.',
+            'Liquidez Diária': 'Volume médio negociado por dia — indica a facilidade de comprar ou vender sem afetar o preço.',
+            'Variação (12M)': 'Variação da cotação nos últimos 12 meses.',
+            'Val. Patr. p/ Cota': 'Valor patrimonial do fundo dividido pelo número de cotas.',
+            'Valor Patrimonial': 'Patrimônio líquido total do fundo.',
+            'Vacância': 'Percentual da área ou receita potencial do fundo que está sem inquilino.',
+            'Nº de Cotistas': 'Quantidade de investidores que possuem cotas do fundo.',
+            'Segmento': 'Tipo de ativo em que o fundo investe (lajes corporativas, shoppings, logística, papel, etc.).',
+            'Mandato': 'Estratégia de atuação do fundo — desenvolvimento, renda, híbrido, entre outras.',
+            'Tipo de Fundo': 'Classificação regulatória do fundo (tijolo, papel, fundo de fundos, híbrido).',
+            'Tipo de Gestão': 'Se as decisões de investimento do fundo são ativas ou passivas (indexadas a um benchmark).',
+            'Taxa de Admin.': 'Percentual cobrado anualmente pela gestora sobre o patrimônio do fundo.'
+        };
+
         // 1. OUVINTE DE ESTADO (Logado vs Deslogado)
         onAuthStateChanged(auth, async (user) => {
             const btnAuth = document.getElementById('btn-auth');
@@ -374,7 +479,7 @@
                     window.location.reload();
                 };
                 
-                // Busca os favoritos do banco de dados na hora que entra
+                // Busca os favoritos
                 const docRef = doc(db, "users", currentUser.uid);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists() && docSnap.data().favoritos) {
@@ -420,7 +525,7 @@
             if (ticker && document.querySelector('.results-header')) window.buscar();
         };
 
-        // 3. MÁGICA DA ESTRELINHA (Salva no Firestore)
+        // 3. MÁGICA DA ESTRELINHA E FAVORITOS
         window.toggleFavorito = async (btn, ticker) => {
             if (!currentUser) {
                 alert("Você precisa estar logado para salvar favoritos!");
@@ -431,19 +536,16 @@
             const docRef = doc(db, "users", currentUser.uid);
             
             if (btn.classList.contains('active')) {
-                // Remove do Banco
                 btn.classList.remove('active');
                 userFavorites = userFavorites.filter(t => t !== ticker);
                 await setDoc(docRef, { favoritos: arrayRemove(ticker) }, { merge: true });
             } else {
-                // Adiciona no Banco
                 btn.classList.add('active');
                 userFavorites.push(ticker);
                 await setDoc(docRef, { favoritos: arrayUnion(ticker) }, { merge: true });
             }
         };
 
-        // 4. TELA DE FAVORITOS (Puxa do Firestore)
         function abrirFavoritos() {
             const container = document.getElementById('resultContainer');
             
@@ -473,23 +575,55 @@
             `;
         }
 
+        // NOVO: A lógica de auto-pesquisa perfeita
         window.pesquisarFavorito = (ticker) => {
+            // Se terminar em '11', provavelmente é FII, se não é Ação
+            const modoSugerido = ticker.endsWith('11') ? 'fiis' : 'acoes';
+            window.setMode(modoSugerido);
+            
+            // Preenche o input e força a pesquisa
             document.getElementById('tickerInput').value = ticker;
-            window.setMode(ticker.endsWith('11') ? 'fiis' : 'acoes'); // Tenta deduzir
             window.buscar();
         };
 
-        // 5. MOTOR QUÂNTICO (Buscador)
+        // 4. MOTOR QUÂNTICO (Buscador + Tooltips + Ícones)
+        function getIcon(cls) {
+            if (cls === 'good') {
+                return `<svg style="color:var(--good); min-width: 24px;" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            }
+            if (cls === 'bad') {
+                return `<svg style="color:var(--bad); min-width: 24px;" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            }
+            return ``;
+        }
+
+        function helpBadge(title) {
+            const texto = TOOLTIPS[title];
+            if (!texto) return '';
+            return `<span class="help-icon" tabindex="0">?<span class="help-tooltip">${texto}</span></span>`;
+        }
+
+        function formatMargem(margem) {
+            if (margem === null || margem === undefined || isNaN(margem)) return '';
+            const abaixo = margem >= 0;
+            const texto = `${Math.abs(margem).toFixed(1).replace('.', ',')}% ${abaixo ? 'abaixo' : 'acima'} do valor justo`;
+            return `<div class="card-caption ${abaixo ? 'good' : 'bad'}">${texto}</div>`;
+        }
+
         function createCard(title, dataObj) {
             const val = dataObj?.value || '-';
             const cls = dataObj?.class || 'neutral';
-            const margemHTML = dataObj?.margem ? `<div class="card-caption ${dataObj.margem >= 0 ? 'good' : 'bad'}">${Math.abs(dataObj.margem).toFixed(1).replace('.',',')}% ${dataObj.margem >= 0 ? 'abaixo' : 'acima'} do justo</div>` : '';
+            const caption = dataObj?.margem !== undefined ? formatMargem(dataObj.margem) : '';
             return `
                 <div class="card ${cls}">
-                    <div class="card-title">${title}</div>
-                    <div class="card-body"><span class="card-value">${val}</span></div>
-                    ${margemHTML}
-                </div>`;
+                    <div class="card-title">${title}${helpBadge(title)}</div>
+                    <div class="card-body">
+                        ${getIcon(cls)}
+                        <span class="card-value">${val}</span>
+                    </div>
+                    ${caption}
+                </div>
+            `;
         }
 
         function apenasValor(dataObj) { return { value: dataObj?.value || '-', class: 'neutral' }; }
@@ -521,7 +655,6 @@
                     return;
                 }
 
-                // Verifica se a estrelinha já deve vir acesa
                 const isFav = userFavorites.includes(data.ticker);
 
                 if (currentMode === 'acoes') {
@@ -630,7 +763,6 @@
             }
         };
 
-        // Permite "Enter" para buscar
         document.getElementById('tickerInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') window.buscar();
         });
