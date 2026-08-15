@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invista+ | Entrar</title>
+    <!-- Usa exatamente o mesmo estilo do Cadastro -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root { --bg: #f4f7fa; --primary: #004a9f; --primary-hover: #003675; --text-main: #333333; --border: #dde4ec; --bad: #dc3545; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .top-nav { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 15px 40px; background: white; border-bottom: 1px solid var(--border); box-sizing: border-box;}
+        .logo-container { display: flex; align-items: center; gap: 10px; font-size: 1.4rem; font-weight: 700; color: var(--primary); cursor: pointer; text-decoration: none; }
+        .logo-icon { background: var(--primary); color: white; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+        .btn-outline { background-color: transparent; color: var(--primary); border: 2px solid var(--primary); padding: 8px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; }
+        .auth-container { display: flex; justify-content: center; align-items: center; flex: 1; width: 100%; padding: 20px; box-sizing: border-box; }
+        .auth-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05); width: 100%; max-width: 400px; text-align: center; }
+        .auth-card h2 { color: var(--primary); margin: 0 0 10px; font-size: 1.8rem; }
+        .auth-card p { color: #666; margin: 0 0 30px; font-size: 0.95rem; }
+        .input-group { text-align: left; margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-bottom: 8px; }
+        .input-group input { width: 100%; padding: 12px 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; transition: border-color 0.2s; box-sizing: border-box;}
+        .input-group input:focus { border-color: var(--primary); }
+        .btn-submit { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: 20px; transition: background 0.2s; }
+        .btn-submit:hover { background-color: var(--primary-hover); }
+        .btn-submit:disabled { background-color: var(--border); cursor: not-allowed; }
+        .auth-footer { font-size: 0.9rem; color: #666; }
+        .auth-footer a { color: var(--primary); font-weight: 600; text-decoration: none; }
+        .auth-footer a:hover { text-decoration: underline; }
+        #error-message { color: var(--bad); font-size: 0.85rem; margin-bottom: 15px; display: none; }
+    </style>
+</head>
+<body>
+
+    <header class="top-nav">
+        <a href="index.html" class="logo-container">
+            <div class="logo-icon">📈</div>
+            Invista+
+        </a>
+        <a href="cadastro.html" class="btn-outline">Criar Conta</a>
+    </header>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <h2>Bem-vindo de volta</h2>
+            <p>Entre para analisar seus ativos com a Invista+</p>
+
+            <div id="error-message"></div>
+
+            <form id="loginForm">
+                <div class="input-group">
+                    <label>E-mail</label>
+                    <input type="email" id="email" placeholder="seu@email.com" required>
+                </div>
+                <div class="input-group">
+                    <label>Senha</label>
+                    <input type="password" id="senha" placeholder="Sua senha" required>
+                </div>
+                
+                <button type="submit" id="submitBtn" class="btn-submit">Entrar</button>
+            </form>
+
+            <div class="auth-footer">
+                Não tem conta? <a href="cadastro.html">Criar agora</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Importação do Firebase via CDN (Modular) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+        // A SUA CONFIGURAÇÃO DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWQVHJPSuEx0V_S2KfI2y--3N8oYJqJ0M", 
+            authDomain: "invistamais.firebaseapp.com",
+            projectId: "invistamais",
+            storageBucket: "invistamais.firebasestorage.app",
+            messagingSenderId: "79883291953",
+            appId: "1:79883291953:web:bb7ac4f41f62f72fd07410"
+        };
+
+        // Inicializa o Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const form = document.getElementById('loginForm');
+        const errorDiv = document.getElementById('error-message');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+
+            errorDiv.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Entrando...';
+
+            try {
+                // Autentica o usuário na nuvem
+                await signInWithEmailAndPassword(auth, email, senha);
+                // Se der certo, redireciona para o painel principal
+                window.location.href = 'index.html';
+            } catch (error) {
+                errorDiv.style.display = 'block';
+                if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    errorDiv.innerText = 'E-mail ou senha incorretos.';
+                } else {
+                    errorDiv.innerText = 'Falha no login. Verifique sua conexão.';
+                    console.error(error);
+                }
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Entrar';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invista+ | Criar Conta</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root { --bg: #f4f7fa; --primary: #004a9f; --primary-hover: #003675; --text-main: #333333; --border: #dde4ec; --bad: #dc3545; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .top-nav { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 15px 40px; background: white; border-bottom: 1px solid var(--border); box-sizing: border-box; }
+        .logo-container { display: flex; align-items: center; gap: 10px; font-size: 1.4rem; font-weight: 700; color: var(--primary); cursor: pointer; text-decoration: none; }
+        .logo-icon { background: var(--primary); color: white; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; }
+        .btn-outline { background-color: transparent; color: var(--primary); border: 2px solid var(--primary); padding: 8px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; text-decoration: none; }
+        .auth-container { display: flex; justify-content: center; align-items: center; flex: 1; width: 100%; padding: 20px; box-sizing: border-box; }
+        .auth-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05); width: 100%; max-width: 400px; text-align: center; }
+        .auth-card h2 { color: var(--primary); margin: 0 0 10px; font-size: 1.8rem; }
+        .auth-card p { color: #666; margin: 0 0 30px; font-size: 0.95rem; }
+        .input-group { text-align: left; margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text-main); margin-bottom: 8px; }
+        .input-group input { width: 100%; padding: 12px 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; font-family: inherit; outline: none; transition: border-color 0.2s; box-sizing: border-box; }
+        .input-group input:focus { border-color: var(--primary); }
+        .btn-submit { width: 100%; background-color: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: 20px; transition: background 0.2s; }
+        .btn-submit:hover { background-color: var(--primary-hover); }
+        .btn-submit:disabled { background-color: var(--border); cursor: not-allowed; }
+        .auth-footer { font-size: 0.9rem; color: #666; }
+        .auth-footer a { color: var(--primary); font-weight: 600; text-decoration: none; }
+        .auth-footer a:hover { text-decoration: underline; }
+        #error-message { color: var(--bad); font-size: 0.85rem; margin-bottom: 15px; display: none; }
+    </style>
+</head>
+<body>
+
+    <header class="top-nav">
+        <a href="index.html" class="logo-container">
+            <div class="logo-icon">📈</div>
+            Invista+
+        </a>
+        <a href="login.html" class="btn-outline">Fazer Login</a>
+    </header>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <h2>Criar Conta</h2>
+            <p>Comece a investir de forma inteligente</p>
+
+            <div id="error-message"></div>
+
+            <form id="cadastroForm">
+                <div class="input-group">
+                    <label>E-mail</label>
+                    <input type="email" id="email" placeholder="seu@email.com" required>
+                </div>
+                <div class="input-group">
+                    <label>Senha</label>
+                    <input type="password" id="senha" placeholder="Crie uma senha (mín. 6 caracteres)" required minlength="6">
+                </div>
+                
+                <button type="submit" id="submitBtn" class="btn-submit">Cadastrar</button>
+            </form>
+
+            <div class="auth-footer">
+                Já tem conta? <a href="login.html">Fazer Login</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Importação do Firebase via CDN (Modular) -->
+    <script type="module">
+        // ATUALIZADO PARA A SUA VERSÃO 12.17.1
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+
+        // A SUA CONFIGURAÇÃO DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWQVHJPSuEx0V_S2KfI2y--3N8oYJqJ0M", 
+            authDomain: "invistamais.firebaseapp.com",
+            projectId: "invistamais",
+            storageBucket: "invistamais.firebasestorage.app",
+            messagingSenderId: "79883291953",
+            appId: "1:79883291953:web:bb7ac4f41f62f72fd07410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const form = document.getElementById('cadastroForm');
+        const errorDiv = document.getElementById('error-message');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+
+            errorDiv.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Criando conta...';
+
+            try {
+                await createUserWithEmailAndPassword(auth, email, senha);
+                window.location.href = 'index.html';
+            } catch (error) {
+                errorDiv.style.display = 'block';
+                if (error.code === 'auth/email-already-in-use') {
+                    errorDiv.innerText = 'Este e-mail já está cadastrado.';
+                } else if (error.code === 'auth/weak-password') {
+                    errorDiv.innerText = 'A senha deve ter pelo menos 6 caracteres.';
+                } else {
+                    errorDiv.innerText = 'Erro ao criar conta. Tente novamente.';
+                    console.error(error);
+                }
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Cadastrar';
+            }
+        });
+    </script>
+</body>
+</html>
