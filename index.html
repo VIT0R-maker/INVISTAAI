@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InvistaAI — Scanner Fundamentalista</title>
+    <title>Invista+ | Scanner Fundamentalista</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
         :root {
             --bg: #f4f7fa;
             --card-bg: #ffffff;
-            --primary: #0052cc;
-            --primary-hover: #003b91;
+            --primary: #004a9f;
+            --primary-hover: #003675;
             --text-main: #333333;
             --text-muted: #667788;
             --border: #dde4ec;
@@ -34,7 +34,6 @@
             min-height: 100vh;
         }
 
-        /* Nova Barra de Navegação Superior */
         .top-nav {
             width: 100%;
             max-width: 1000px;
@@ -53,6 +52,7 @@
             font-size: 1.5rem;
             font-weight: 700;
             color: var(--primary);
+            text-decoration: none;
         }
 
         .logo-icon {
@@ -67,7 +67,7 @@
             font-size: 1.2rem;
         }
 
-        .btn-entrar {
+        .btn-auth {
             background-color: var(--primary);
             color: white;
             border: none;
@@ -79,7 +79,7 @@
             transition: background 0.3s;
         }
 
-        .btn-entrar:hover { background-color: var(--primary-hover); }
+        .btn-auth:hover { background-color: var(--primary-hover); }
 
         .container {
             width: 100%;
@@ -126,11 +126,7 @@
             margin-bottom: 30px;
         }
 
-        .perfil-label {
-            font-size: 0.9rem;
-            color: var(--text-main);
-            font-weight: 600;
-        }
+        .perfil-label { font-size: 0.9rem; color: var(--text-main); font-weight: 600; }
 
         .perfil-selector {
             display: flex;
@@ -205,27 +201,22 @@
             margin-top: 5px;
         }
 
-        /* Botão de Favorito (Estrela) */
         .btn-fav {
             background: transparent;
             border: none;
             color: var(--border);
             font-size: 2rem;
             cursor: pointer;
-            transition: color 0.2s;
+            transition: color 0.2s, transform 0.2s;
             padding: 0;
             display: flex;
             align-items: center;
         }
-        .btn-fav:hover { color: #f1c40f; }
+        
+        .btn-fav:hover { color: #f1c40f; transform: scale(1.1); }
         .btn-fav.active { color: #f1c40f; }
 
-        .selic-info {
-            text-align: center;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 30px;
-        }
+        .selic-info { text-align: center; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 30px; }
 
         .section-title {
             font-size: 1.2rem;
@@ -272,21 +263,8 @@
             letter-spacing: 0.3px;
         }
 
-        .card-body {
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .card-value {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--text-main);
-            text-align: right;
-            overflow-wrap: break-word;
-            word-break: normal;
-        }
+        .card-body { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+        .card-value { font-size: 1.4rem; font-weight: 700; color: var(--text-main); text-align: right; }
 
         .card-caption { text-align: right; font-size: 0.78rem; font-weight: 600; margin-top: 6px; }
         .card-caption.good { color: var(--good); }
@@ -301,23 +279,42 @@
             border-radius: 12px;
             border: 1px solid var(--border);
         }
+
+        .fav-item-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+
+        .fav-item-btn:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
     </style>
 </head>
 <body>
 
     <header class="top-nav">
-        <div class="logo-container">
+        <a href="index.html" class="logo-container">
             <div class="logo-icon">📈</div>
             Invista+
-        </div>
-        <button class="btn-entrar" onclick="window.location.href='login.html'">Entrar</button>
+        </a>
+        <!-- Botão Dinâmico: Se logado = Sair, se deslogado = Entrar -->
+        <button class="btn-auth" id="btn-auth" onclick="window.location.href='login.html'">Entrar</button>
     </header>
 
     <div class="container">
         <div class="header-tabs">
             <button class="tab-btn active" onclick="setMode('acoes')" id="btn-acoes">Ações</button>
             <button class="tab-btn" onclick="setMode('fiis')" id="btn-fiis">FIIs</button>
-            <button class="tab-btn" onclick="abrirFavoritos()" id="btn-favoritos">Favoritos</button>
+            <button class="tab-btn" onclick="setMode('favoritos')" id="btn-favoritos">Favoritos</button>
         </div>
 
         <div class="perfil-row" id="perfilRow">
@@ -331,7 +328,7 @@
             </div>
         </div>
 
-        <div class="search-box">
+        <div class="search-box" id="searchBox">
             <input type="text" id="tickerInput" placeholder="Digite o ticker (ex: PETR4, BBAS3)">
             <button id="searchBtn" onclick="buscar()">Pesquisar</button>
         </div>
@@ -341,70 +338,163 @@
         </div>
     </div>
 
-    <script>
+    <!-- Firebase + Script da Aplicação -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+        // COLOQUE SUA CHAVE AQUI!
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWQVHJPSuEx0V_S2KfI2y--3N8oYJqJ0M", 
+            authDomain: "invistamais.firebaseapp.com",
+            projectId: "invistamais",
+            storageBucket: "invistamais.firebasestorage.app",
+            messagingSenderId: "79883291953",
+            appId: "1:79883291953:web:bb7ac4f41f62f72fd07410"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let userFavorites = [];
         let currentMode = 'acoes';
         let currentPerfil = 'moderado';
 
-        function setMode(mode) {
+        // 1. OUVINTE DE ESTADO (Logado vs Deslogado)
+        onAuthStateChanged(auth, async (user) => {
+            const btnAuth = document.getElementById('btn-auth');
+            if (user) {
+                currentUser = user;
+                btnAuth.innerText = 'Sair';
+                btnAuth.onclick = async () => {
+                    await signOut(auth);
+                    window.location.reload();
+                };
+                
+                // Busca os favoritos do banco de dados na hora que entra
+                const docRef = doc(db, "users", currentUser.uid);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists() && docSnap.data().favoritos) {
+                    userFavorites = docSnap.data().favoritos;
+                }
+            } else {
+                currentUser = null;
+                userFavorites = [];
+                btnAuth.innerText = 'Entrar';
+                btnAuth.onclick = () => window.location.href = 'login.html';
+            }
+        });
+
+        // 2. FUNÇÕES DE INTERFACE EXPORTADAS PRO HTML
+        window.setMode = (mode) => {
             currentMode = mode;
             document.getElementById('btn-acoes').classList.remove('active');
             document.getElementById('btn-fiis').classList.remove('active');
             document.getElementById('btn-favoritos').classList.remove('active');
             document.getElementById(`btn-${mode}`).classList.add('active');
 
+            const searchBox = document.getElementById('searchBox');
+            const perfilRow = document.getElementById('perfilRow');
+
             if (mode === 'favoritos') {
+                searchBox.style.display = 'none';
+                perfilRow.style.display = 'none';
                 abrirFavoritos();
                 return;
             }
 
+            searchBox.style.display = 'flex';
+            perfilRow.style.display = 'flex';
             const placeholder = mode === 'acoes' ? 'ex: PETR4, BBAS3, WEGE3' : 'ex: MXRF11, HGLG11, KNCR11';
             document.getElementById('tickerInput').placeholder = `Digite o ticker (${placeholder})`;
             document.getElementById('tickerInput').value = '';
             document.getElementById('resultContainer').innerHTML = `<div class="message">Pronto para buscar ${mode === 'acoes' ? 'Ações' : 'FIIs'}.</div>`;
-        }
+        };
 
-        function setPerfil(perfil) {
+        window.setPerfil = (perfil) => {
             currentPerfil = perfil;
             const ticker = document.getElementById('tickerInput').value.trim();
-            if (ticker && document.querySelector('.results-header')) buscar();
-        }
+            if (ticker && document.querySelector('.results-header')) window.buscar();
+        };
 
-        function toggleFavorito(btn, ticker) {
-            // Lógica futura conectada ao Firebase
-            btn.classList.toggle('active');
-            if(btn.classList.contains('active')) {
-                alert(`${ticker} adicionado aos favoritos! (Integração com DB em breve)`);
-            } else {
-                alert(`${ticker} removido dos favoritos!`);
+        // 3. MÁGICA DA ESTRELINHA (Salva no Firestore)
+        window.toggleFavorito = async (btn, ticker) => {
+            if (!currentUser) {
+                alert("Você precisa estar logado para salvar favoritos!");
+                window.location.href = 'login.html';
+                return;
             }
-        }
 
+            const docRef = doc(db, "users", currentUser.uid);
+            
+            if (btn.classList.contains('active')) {
+                // Remove do Banco
+                btn.classList.remove('active');
+                userFavorites = userFavorites.filter(t => t !== ticker);
+                await setDoc(docRef, { favoritos: arrayRemove(ticker) }, { merge: true });
+            } else {
+                // Adiciona no Banco
+                btn.classList.add('active');
+                userFavorites.push(ticker);
+                await setDoc(docRef, { favoritos: arrayUnion(ticker) }, { merge: true });
+            }
+        };
+
+        // 4. TELA DE FAVORITOS (Puxa do Firestore)
         function abrirFavoritos() {
-            document.getElementById('resultContainer').innerHTML = `
-                <div class="message">
-                    <h3>Meus Ativos Favoritos</h3>
-                    <p>Você precisa estar logado para ver seus ativos salvos.</p>
-                    <button class="btn-entrar" onclick="window.location.href='login.html'" style="margin-top: 15px;">Fazer Login</button>
-                </div>
+            const container = document.getElementById('resultContainer');
+            
+            if (!currentUser) {
+                container.innerHTML = `
+                    <div class="message">
+                        <h3 style="color: var(--primary);">Acesso Restrito</h3>
+                        <p>Faça login na Invista+ para salvar e acessar sua carteira de acompanhamento rápida.</p>
+                    </div>`;
+                return;
+            }
+
+            if (userFavorites.length === 0) {
+                container.innerHTML = `<div class="message">Você ainda não tem nenhum ativo salvo. Pesquise um ticker e clique na estrela!</div>`;
+                return;
+            }
+
+            let gridHTML = '<div class="results-grid">';
+            userFavorites.forEach(ticker => {
+                gridHTML += `<button class="fav-item-btn" onclick="pesquisarFavorito('${ticker}')">${ticker}</button>`;
+            });
+            gridHTML += '</div>';
+
+            container.innerHTML = `
+                <div class="section-title" style="margin-top:0;">Meus Ativos Salvos</div>
+                ${gridHTML}
             `;
         }
 
+        window.pesquisarFavorito = (ticker) => {
+            document.getElementById('tickerInput').value = ticker;
+            window.setMode(ticker.endsWith('11') ? 'fiis' : 'acoes'); // Tenta deduzir
+            window.buscar();
+        };
+
+        // 5. MOTOR QUÂNTICO (Buscador)
         function createCard(title, dataObj) {
             const val = dataObj?.value || '-';
             const cls = dataObj?.class || 'neutral';
+            const margemHTML = dataObj?.margem ? `<div class="card-caption ${dataObj.margem >= 0 ? 'good' : 'bad'}">${Math.abs(dataObj.margem).toFixed(1).replace('.',',')}% ${dataObj.margem >= 0 ? 'abaixo' : 'acima'} do justo</div>` : '';
             return `
                 <div class="card ${cls}">
                     <div class="card-title">${title}</div>
                     <div class="card-body"><span class="card-value">${val}</span></div>
-                </div>
-            `;
+                    ${margemHTML}
+                </div>`;
         }
 
-        function apenasValor(dataObj) {
-            return { value: dataObj?.value || '-', class: 'neutral' };
-        }
+        function apenasValor(dataObj) { return { value: dataObj?.value || '-', class: 'neutral' }; }
 
-        async function buscar() {
+        window.buscar = async () => {
             const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
             const container = document.getElementById('resultContainer');
             const btn = document.getElementById('searchBtn');
@@ -414,7 +504,6 @@
             btn.disabled = true;
             container.innerHTML = `<div class="message">Aspirando dados de <strong>${ticker}</strong>... Aguarde.</div>`;
             
-            // URL da sua Vercel
             const baseUrl = 'https://invistaai-ochre.vercel.app'; 
             const endpoint = currentMode === 'acoes' ? `${baseUrl}/api/acoes` : `${baseUrl}/api/fiis`;
 
@@ -432,36 +521,119 @@
                     return;
                 }
 
+                // Verifica se a estrelinha já deve vir acesa
+                const isFav = userFavorites.includes(data.ticker);
+
                 if (currentMode === 'acoes') {
                     container.innerHTML = `
                         <div class="results-header">
                             Relatório Fundamentalista
                             <span>
                                 ${data.ticker} 
-                                <button class="btn-fav" onclick="toggleFavorito(this, '${data.ticker}')" title="Favoritar ativo">★</button>
+                                <button class="btn-fav ${isFav ? 'active' : ''}" onclick="toggleFavorito(this, '${data.ticker}')" title="Favoritar">★</button>
                             </span>
                         </div>
                         <div class="selic-info">Selic: ${data.selicUtilizada}% · Perfil: ${data.perfil}</div>
-                        <div class="section-title">Valuation & Múltiplos</div>
+                        
+                        <div class="section-title">Valuation (Preço Justo)</div>
                         <div class="results-grid">
                             ${createCard('Cotação Atual', apenasValor(data.cotacao))}
+                            ${createCard('Valor Justo (Graham Padrão)', data.valorGrahamPadrao)}
+                            ${createCard('Valor Justo (Graham Rev.)', data.valorGrahamRev)}
+                            ${createCard('Valor Justo (Graham Tupiniquim)', data.valorGrahamTupiniquim)}
+                            ${createCard('Preço Teto (Bazin 6%)', data.precoTeto6)}
+                            ${createCard('Preço Teto (Bazin 8%)', data.precoTeto8)}
+                        </div>
+
+                        <div class="section-title">Múltiplos de Preço</div>
+                        <div class="results-grid">
                             ${createCard('P/L', data.pl)}
                             ${createCard('P/VP', data.pvp)}
                         </div>
-                        <div class="section-title">Rentabilidade & Dividendos</div>
+
+                        <div class="section-title">Dividendos & Proventos</div>
                         <div class="results-grid">
                             ${createCard('DY (12M)', data.dy)}
+                            ${createCard('Payout', apenasValor(data.payout))}
+                        </div>
+
+                        <div class="section-title">Indicadores de Rentabilidade</div>
+                        <div class="results-grid">
                             ${createCard('ROE', data.roe)}
+                            ${createCard('ROIC', apenasValor(data.roic))}
+                            ${createCard('ROA', apenasValor(data.roa))}
+                            ${createCard('Margem Bruta', apenasValor(data.margemBruta))}
+                            ${createCard('Margem EBITDA', apenasValor(data.margemEbitda))}
                             ${createCard('Margem Líquida', data.margemLiquida)}
                         </div>
-                    `; // Você pode restaurar todos os cards completos da sua versão anterior aqui dentro!
+
+                        <div class="section-title">Endividamento & Liquidez</div>
+                        <div class="results-grid">
+                            ${createCard('Dív. Líq./Patrimônio', data.divLiqPatrimonio)}
+                            ${createCard('Dív. Líq./EBITDA', apenasValor(data.divLiqEbitda))}
+                            ${createCard('Liquidez Corrente', data.liquidezCorrente)}
+                        </div>
+
+                        <div class="section-title">Outros Indicadores</div>
+                        <div class="results-grid">
+                            ${createCard('LPA (Lucro por Ação)', apenasValor(data.lpa))}
+                            ${createCard('VPA (Valor Patr. Ação)', apenasValor(data.vpa))}
+                            ${createCard('CAGR Crescimento 5A', apenasValor(data.cagr5a))}
+                            ${createCard('Giro Ativos', apenasValor(data.giroAtivos))}
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div class="results-header">
+                            Relatório do Fundo
+                            <span>
+                                ${data.ticker}
+                                <button class="btn-fav ${isFav ? 'active' : ''}" onclick="toggleFavorito(this, '${data.ticker}')" title="Favoritar">★</button>
+                            </span>
+                        </div>
+                        <div class="selic-info">Perfil de avaliação: ${data.perfil}</div>
+
+                        <div class="section-title">Efeito Bola de Neve (EBN)</div>
+                        <div class="results-grid">
+                            ${createCard('Cotas p/ Bola de Neve (EBN)', apenasValor(data.ebn))}
+                            ${createCard('Valor Necessário (VN)', apenasValor(data.vn))}
+                            ${createCard('Último Rendimento', apenasValor(data.ultimoRendimento))}
+                        </div>
+
+                        <div class="section-title">Indicadores do Fundo</div>
+                        <div class="results-grid">
+                            ${createCard('Cotação Atual', apenasValor(data.cotacao))}
+                            ${createCard('P/VP', data.pvp)}
+                            ${createCard('DY (12M)', data.dy)}
+                            ${createCard('Liquidez Diária', data.liquidezDiaria)}
+                            ${createCard('Variação (12M)', apenasValor(data.variacao12m))}
+                            ${createCard('Val. Patr. p/ Cota', apenasValor(data.vpa))}
+                            ${createCard('Valor Patrimonial', data.valorPatrimonial)}
+                            ${createCard('Vacância', data.vacancia)}
+                            ${createCard('Nº de Cotistas', data.numeroCotistas)}
+                        </div>
+
+                        <div class="section-title">Perfil do Fundo</div>
+                        <div class="results-grid">
+                            ${createCard('Segmento', apenasValor(data.segmento))}
+                            ${createCard('Mandato', apenasValor(data.mandato))}
+                            ${createCard('Tipo de Fundo', apenasValor(data.tipoFundo))}
+                            ${createCard('Tipo de Gestão', apenasValor(data.tipoGestao))}
+                            ${createCard('Taxa de Admin.', apenasValor(data.taxaAdministracao))}
+                        </div>
+                    `;
                 }
             } catch (error) {
                 container.innerHTML = `<div class="message" style="color: var(--bad);">Erro de conexão com o Motor Quântico.</div>`;
             } finally {
                 btn.disabled = false;
             }
-        }
+        };
+
+        // Permite "Enter" para buscar
+        document.getElementById('tickerInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') window.buscar();
+        });
     </script>
 </body>
 </html>
