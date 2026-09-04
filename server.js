@@ -198,6 +198,55 @@ app.post('/api/fiis', async (req, res) => {
   }
 });
 
+// =================================================================
+// ROTA DO IOT: GATILHO FÍSICO DO ESP32 (RELATÓRIO DA CARTEIRA)
+// =================================================================
+app.post('/api/relatorio', async (req, res) => {
+  const { deviceId } = req.body;
+
+  if (!deviceId) return res.status(400).json({ error: 'Device ID não informado.' });
+
+  // 1. Simulação do Firebase (Identificação do Usuário pelo Hardware)
+  const bancoDeDadosMock = {
+    "esp32-vitor-01": {
+      nome: "Vitor Morais",
+      email: "vitor@email.com", // Seu e-mail real viria aqui
+      ativosFavoritos: ["PETR4", "VALE3", "ITUB4"]
+    }
+  };
+
+  const usuario = bancoDeDadosMock[deviceId];
+
+  if (!usuario) {
+    return res.status(404).json({ error: 'Aparelho não reconhecido no sistema.' });
+  }
+
+  // 2. Simulação da Varredura (Logs que você poderá mostrar na apresentação)
+  console.log(`[IoT Trigger] Aparelho de ${usuario.nome} acionado!`);
+  console.log(`[IoT Trigger] Analisando ativos: ${usuario.ativosFavoritos.join(', ')}...`);
+
+  try {
+    // Aqui no futuro entraria a lógica de rodar o 'buscarAcao()' para cada item
+    // e usar o Nodemailer/Resend para disparar o e-mail real.
+    
+    // Simulando o tempo de processamento da B3...
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    console.log(`[IoT Trigger] ✉️ Relatório gerado e "enviado" para ${usuario.email}!`);
+
+    // 3. Resposta de sucesso que fará o LCD do ESP32 mudar a mensagem
+    res.json({
+      success: true,
+      message: "Relatorio enviado no e-mail!",
+      usuario: usuario.nome
+    });
+
+  } catch (error) {
+    console.error("Erro na varredura do IoT:", error);
+    res.status(500).json({ error: 'Falha ao processar relatório.' });
+  }
+});
+
 // Se não estivermos na Vercel (rodando localmente), liga a porta normalmente
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   app.listen(port, () => {
