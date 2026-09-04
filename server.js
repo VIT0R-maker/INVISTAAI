@@ -12,17 +12,23 @@ import nodemailer from 'nodemailer';
 
 const app = express();
 
-// 1. Inicializa o Firebase com as variáveis escondidas da Vercel
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      // O replace corrige as quebras de linha da chave privada no servidor
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    })
-  });
+// 1. Inicializa o Firebase com proteção contra quedas (Try/Catch)
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        // O replace corrige as quebras de linha da chave privada no servidor
+        privateKey: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined,
+      })
+    });
+  }
+  console.log("🔥 Conectado ao banco de dados Firestore!");
+} catch (error) {
+  console.error("❌ Falha crítica ao conectar no Firebase. Verifique as variáveis na Vercel:", error.message);
 }
+
 const db = admin.firestore();
 
 // 2. Configura o "carteiro" (Nodemailer) com a sua Senha de App
