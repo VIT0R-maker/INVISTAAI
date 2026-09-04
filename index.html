@@ -375,6 +375,9 @@
                 userFavorites.push(ticker);
                 await setDoc(docRef, { favoritos: arrayUnion(ticker) }, { merge: true });
             }
+
+            // Sincroniza a nova lista com o backend para o ESP32 ler
+            sincronizarComNuvem(userFavorites);
         };
 
         function abrirFavoritos() {
@@ -605,6 +608,22 @@
         document.getElementById('tickerInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') window.buscar();
         });
+
+        async function sincronizarComNuvem(listaAtualizada) {
+  try {
+    await fetch('https://invistaai-ochre.vercel.app/api/favoritos/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        deviceId: "esp32-vitor-01", // Amarramos a interface web ao seu hardware
+        favoritos: listaAtualizada 
+      })
+    });
+    console.log("Sincronização com o Firebase concluída!");
+  } catch (error) {
+    console.error("Erro na comunicação com a nuvem:", error);
+  }
+}
     </script>
 </body>
 </html>
