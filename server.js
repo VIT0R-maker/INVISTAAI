@@ -7,7 +7,32 @@ import { grahamNumero, grahamRevisado, grahamTupiniquim, precoTetoBazin } from '
 import { classifyAcao, classifyFii, perfisAcoesDisponiveis, perfisFiiDisponiveis } from './lib/classify.js';
 import { formatCurrency, formatPercent, formNum, margemSeguranca } from './lib/format.js';
 
+import admin from 'firebase-admin';
+import nodemailer from 'nodemailer';
+
 const app = express();
+
+// 1. Inicializa o Firebase com as variáveis escondidas da Vercel
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // O replace corrige as quebras de linha da chave privada no servidor
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    })
+  });
+}
+const db = admin.firestore();
+
+// 2. Configura o "carteiro" (Nodemailer) com a sua Senha de App
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 const port = process.env.PORT || 3000;
 
 app.use(cors());
@@ -199,50 +224,76 @@ app.post('/api/fiis', async (req, res) => {
 });
 
 // =================================================================
-// ROTA DO IOT: GATILHO FÍSICO DO ESP32 (RELATÓRIO DA CARTEIRA)
+// ROTA DO IOT: FIREBASE REAL + GMAIL + VALUATION
 // =================================================================
 app.post('/api/relatorio', async (req, res) => {
   const { deviceId } = req.body;
-
   if (!deviceId) return res.status(400).json({ error: 'Device ID não informado.' });
 
-  // 1. Simulação do Firebase (Identificação do Usuário pelo Hardware)
-  const bancoDeDadosMock = {
-    "esp32-vitor-01": {
-      nome: "Vitor Morais",
-      email: "vitor@email.com", // Seu e-mail real viria aqui
-      ativosFavoritos: ["PETR4", "VALE3", "ITUB4"]
-    }
-  };
-
-  const usuario = bancoDeDadosMock[deviceId];
-
-  if (!usuario) {
-    return res.status(404).json({ error: 'Aparelho não reconhecido no sistema.' });
-  }
-
-  // 2. Simulação da Varredura (Logs que você poderá mostrar na apresentação)
-  console.log(`[IoT Trigger] Aparelho de ${usuario.nome} acionado!`);
-  console.log(`[IoT Trigger] Analisando ativos: ${usuario.ativosFavoritos.join(', ')}...`);
-
   try {
-    // Aqui no futuro entraria a lógica de rodar o 'buscarAcao()' para cada item
-    // e usar o Nodemailer/Resend para disparar o e-mail real.
+    // 3. Busca você no banco de dados real do Firebase
+    const docRef = db.collection('devices').doc(deviceId);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Aparelho não cadastrado no Firebase.' });
+    }
+
+    const usuario = doc.data();
+    console.log(`[IoT] Analisando ativos de ${usuario.nome}: ${usuario.ativosFavoritos.join(', ')}`);
+
+    // 4. Monta o e-mail dinamicamente raspando os dados de cada favorito
+    let relatorioHTML = `
+      <div style="font-family: Arial; color: #333;">
+        <h2 style="color: #0056b3;">Relatório Invista+</h2>
+        <p>Olá, <b>${usuario.nome}</b>! Aqui está a análise atualizada da sua carteira disparada pelo seu dispositivo físico:</p>
+        <hr>
+    `;
     
-    // Simulando o tempo de processamento da B3...
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Faz uma requisição para a sua própria rota de cotações para aproveitar a lógica existente
+    for (const ticker of usuario.ativosFavoritos) {
+      try {
+        const response = await fetch(`https://invistaai-ochre.vercel.app/api/acoes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticker: ticker, perfil: "moderado" })
+        });
+        
+        const dados = await response.json();
+        
+        relatorioHTML += `
+          <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid #0056b3; background: #f9f9f9;">
+            <h3 style="margin: 0 0 5px 0;">${ticker}</h3>
+            <ul style="margin: 0; padding-left: 20px;">
+              <li><b>Cotação:</b> ${dados.cotacao?.value || '-'}</li>
+              <li><b>P/L:</b> ${dados.pl?.value || '-'}</li>
+              <li><b>DY:</b> ${dados.dy?.value || '-'}</li>
+              <li><b>Valor de Graham:</b> ${dados.valorGrahamTupiniquim?.value || '-'}</li>
+            </ul>
+          </div>
+        `;
+      } catch (e) {
+        relatorioHTML += `<p><b>${ticker}:</b> Falha ao analisar este ativo no momento.</p>`;
+      }
+    }
+    
+    relatorioHTML += `<br><p><i>Análise gerada automaticamente pelo sistema Invista+ IoT.</i></p></div>`;
 
-    console.log(`[IoT Trigger] ✉️ Relatório gerado e "enviado" para ${usuario.email}!`);
-
-    // 3. Resposta de sucesso que fará o LCD do ESP32 mudar a mensagem
-    res.json({
-      success: true,
-      message: "Relatorio enviado no e-mail!",
-      usuario: usuario.nome
+    // 5. Envia o E-mail usando o seu Gmail
+    await transporter.sendMail({
+      from: `"Motor Invista+" <${process.env.EMAIL_USER}>`,
+      to: usuario.email,
+      subject: `📈 Relatório de Ativos Invista+ (${usuario.nome})`,
+      html: relatorioHTML
     });
 
+    console.log(`[IoT] E-mail enviado com sucesso para ${usuario.email}!`);
+
+    // 6. Confirma pro hardware que a missão foi cumprida
+    res.json({ success: true, message: "Relatorio enviado no e-mail!" });
+
   } catch (error) {
-    console.error("Erro na varredura do IoT:", error);
+    console.error("Erro geral no IoT:", error);
     res.status(500).json({ error: 'Falha ao processar relatório.' });
   }
 });
