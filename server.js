@@ -255,7 +255,11 @@ app.post('/api/relatorio', async (req, res) => {
     
     for (const ticker of usuario.ativosFavoritos) {
       try {
-        const response = await fetch(`https://invistaai-ochre.vercel.app/api/acoes`, {
+        // Verifica se o ticker é um Fundo Imobiliário (termina com 11) ou Ação
+        const isFii = ticker.endsWith('11');
+        const endpoint = isFii ? 'api/fiis' : 'api/acoes';
+
+        const response = await fetch(`https://invistaai-ochre.vercel.app/${endpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ticker: ticker, perfil: "moderado" })
@@ -263,17 +267,33 @@ app.post('/api/relatorio', async (req, res) => {
         
         const dados = await response.json();
         
-        relatorioHTML += `
-          <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid #0056b3; background: #f9f9f9;">
-            <h3 style="margin: 0 0 5px 0;">${ticker}</h3>
-            <ul style="margin: 0; padding-left: 20px;">
-              <li><b>Cotação:</b> ${dados.cotacao?.value || '-'}</li>
-              <li><b>P/L:</b> ${dados.pl?.value || '-'}</li>
-              <li><b>DY:</b> ${dados.dy?.value || '-'}</li>
-              <li><b>Valor de Graham:</b> ${dados.valorGrahamTupiniquim?.value || '-'}</li>
-            </ul>
-          </div>
-        `;
+        if (isFii) {
+          // Layout específico para FIIs
+          relatorioHTML += `
+            <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid #28a745; background: #f9f9f9;">
+              <h3 style="margin: 0 0 5px 0;">${ticker} <span style="font-size: 0.8em; color: #666;">(FII)</span></h3>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li><b>Cotação:</b> ${dados.cotacao?.value || '-'}</li>
+                <li><b>P/VP:</b> ${dados.pvp?.value || '-'}</li>
+                <li><b>DY:</b> ${dados.dy?.value || '-'}</li>
+                <li><b>Último Rendimento:</b> ${dados.ultimoRendimento?.value || '-'}</li>
+              </ul>
+            </div>
+          `;
+        } else {
+          // Layout original para Ações
+          relatorioHTML += `
+            <div style="margin-bottom: 15px; padding: 10px; border-left: 4px solid #0056b3; background: #f9f9f9;">
+              <h3 style="margin: 0 0 5px 0;">${ticker} <span style="font-size: 0.8em; color: #666;">(Ação)</span></h3>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li><b>Cotação:</b> ${dados.cotacao?.value || '-'}</li>
+                <li><b>P/L:</b> ${dados.pl?.value || '-'}</li>
+                <li><b>DY:</b> ${dados.dy?.value || '-'}</li>
+                <li><b>Valor de Graham:</b> ${dados.valorGrahamTupiniquim?.value || '-'}</li>
+              </ul>
+            </div>
+          `;
+        }
       } catch (e) {
         relatorioHTML += `<p><b>${ticker}:</b> Falha ao analisar este ativo no momento.</p>`;
       }
