@@ -365,6 +365,7 @@
                 return;
             }
 
+            // 1. Salva sempre no perfil privado da pessoa que está logada
             const docRef = doc(db, "users", currentUser.uid);
             
             if (btn.classList.contains('active')) {
@@ -377,8 +378,10 @@
                 await setDoc(docRef, { favoritos: arrayUnion(ticker) }, { merge: true });
             }
 
-            // Sincroniza a nova lista com o backend para o ESP32 ler
-            sincronizarComNuvem(userFavorites);
+            // 2. A FECHADURA DE IOT: Só atualiza a placa física se o usuário for o dono dela!
+            if (currentUser.email === "vitorfaccini93@gmail.com") {
+                sincronizarComNuvem(userFavorites);
+            }
         };
 
         function abrirFavoritos() {
@@ -400,7 +403,11 @@
 
             let gridHTML = '<div class="results-grid">';
             userFavorites.forEach(ticker => {
-                gridHTML += `<button class="fav-item-btn" onclick="pesquisarFavorito('${ticker}')">${ticker}</button>`;
+                gridHTML += `
+                    <div style="position:relative; display:flex; align-items:center;">
+                        <button class="fav-item-btn" style="flex:1; padding-right: 40px; text-align:center;" onclick="pesquisarFavorito('${ticker}')">${ticker}</button>
+                        <button onclick="removerFavoritoDireto('${ticker}')" title="Remover" style="position:absolute; right:10px; background:none; border:none; color:var(--bad); font-size:1.5rem; cursor:pointer; font-weight:bold; transition: transform 0.2s;">&times;</button>
+                    </div>`;
             });
             gridHTML += '</div>';
 
@@ -409,6 +416,26 @@
                 ${gridHTML}
             `;
         }
+
+        // Nova função para o botão 'X'
+        window.removerFavoritoDireto = async (ticker) => {
+            if (!currentUser) return;
+            
+            // 1. Remove da lista local da interface
+            userFavorites = userFavorites.filter(t => t !== ticker);
+            
+            // 2. Remove do banco de dados do usuário logado
+            const docRef = doc(db, "users", currentUser.uid);
+            await setDoc(docRef, { favoritos: arrayRemove(ticker) }, { merge: true });
+
+            // 3. A FECHADURA DE IOT: Se for o dono do hardware, remove do banco do ESP32 também
+            if (currentUser.email === "vitorfaccini93@gmail.com") {
+                sincronizarComNuvem(userFavorites);
+            }
+            
+            // 4. Recarrega a tela de favoritos para o botão sumir
+            abrirFavoritos();
+        };
 
         window.pesquisarFavorito = (ticker) => {
             const modoSugerido = ticker.endsWith('11') ? 'fiis' : 'acoes';
