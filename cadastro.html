@@ -67,31 +67,21 @@
 
     <!-- Importação do Firebase via CDN (Modular) -->
     <script type="module">
-        // ATUALIZADO PARA A SUA VERSÃO 12.17.1
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
 
-        // Import the functions you need from the SDKs you need
-    import { initializeApp } from "firebase/app";
-    import { getAnalytics } from "firebase/analytics";
-    // TODO: Add SDKs for Firebase products that you want to use
-    // https://firebase.google.com/docs/web/setup#available-libraries
-
-    // Your web app's Firebase configuration
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-    const firebaseConfig = {
-        apiKey: "AIzaSyC4ivuaeCkRzlnMf1wj8NMAYgGMvD_jLzQ",
-        authDomain: "invista-ai-63bba.firebaseapp.com",
-        projectId: "invista-ai-63bba",
-        storageBucket: "invista-ai-63bba.firebasestorage.app",
-        messagingSenderId: "941158151001",
-        appId: "1:941158151001:web:127d37db6b903b81585248",
-        measurementId: "G-K3N499C5X9"
+        const firebaseConfig = {
+            apiKey: "AIzaSyC4ivuaeCkRzlnMf1wj8NMAYgGMvD_jLzQ",
+            authDomain: "invista-ai-63bba.firebaseapp.com",
+            projectId: "invista-ai-63bba",
+            storageBucket: "invista-ai-63bba.firebasestorage.app",
+            messagingSenderId: "941158151001",
+            appId: "1:941158151001:web:127d37db6b903b81585248",
+            measurementId: "G-K3N499C5X9"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
 
         const form = document.getElementById('cadastroForm');
         const errorDiv = document.getElementById('error-message');
