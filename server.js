@@ -201,6 +201,32 @@ app.post('/api/fiis', async (req, res) => {
 });
 
 // =================================================================
+// ROTA DE SINCRONIZAÇÃO: FRONTEND -> FIREBASE
+// =================================================================
+app.post('/api/favoritos/sync', async (req, res) => {
+  const { deviceId, favoritos } = req.body;
+  
+  if (!deviceId || !Array.isArray(favoritos)) {
+    return res.status(400).json({ error: 'Dados inválidos.' });
+  }
+
+  try {
+    if (!db) throw new Error("Banco de dados não está conectado.");
+    
+    // Atualiza apenas a matriz 'ativosFavoritos' no documento do usuário
+    const docRef = db.collection('devices').doc(deviceId);
+    await docRef.set({ ativosFavoritos: favoritos }, { merge: true });
+    
+    console.log(`[Sync] Nuvem atualizada para o aparelho ${deviceId}:`, favoritos);
+    res.json({ success: true, message: 'Sincronizado com sucesso!' });
+
+  } catch (error) {
+    console.error("Erro ao sincronizar favoritos na nuvem:", error);
+    res.status(500).json({ error: 'Falha ao salvar na nuvem.' });
+  }
+});
+
+// =================================================================
 // ROTA DO IOT: FIREBASE REAL + GMAIL + VALUATION
 // =================================================================
 app.post('/api/relatorio', async (req, res) => {
