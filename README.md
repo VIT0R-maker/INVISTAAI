@@ -89,3 +89,4 @@ scanner-ativos/
    (`._card`, `.cell`), então devem funcionar, mas não testei ao vivo.
 3. Se quiser, dá pra levar o seletor de perfil (Conservador/Moderado/Arrojado) para a aba de
    FIIs também — hoje ele só existe para Ações porque foi assim que você descreveu o pedido.
+# INVISTA_MAIS
