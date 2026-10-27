@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invista+ | Scanner Fundamentalista</title>
+    <meta name="description" content="Entenda os indicadores de ações e FIIs, simule sua renda e converse com o Auxiliar de análise do Invista+.">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -114,26 +115,29 @@
         .fav-item-btn { background: var(--card-bg); border: 1px solid var(--border); padding: 15px 20px; border-radius: 8px; font-size: 1.1rem; font-weight: 700; color: var(--primary); cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
         .fav-item-btn:hover { border-color: var(--primary); transform: translateY(-2px); }
     </style>
+    <link rel="stylesheet" href="./public/enhancements.css">
 </head>
 <body>
 
     <header class="top-nav">
         <a href="index.html" class="logo-container">
             <div class="logo-icon">📈</div>
-            Invista+
+            Invista+ <span class="brand-note">CLAREZA PARA INVESTIR</span>
         </a>
         <button class="btn-auth" id="btn-auth" onclick="window.location.href='login.html'">Entrar</button>
     </header>
 
     <div class="container">
-        <div class="header-tabs">
+        <div class="page-intro" id="pageIntro"><span class="eyebrow">ANÁLISE FUNDAMENTALISTA</span><h1>Entenda o ativo. Planeje seu próximo aporte.</h1><p>Indicadores, simulações e inteligência artificial para dar contexto às suas decisões.</p></div>
+        <nav class="header-tabs" aria-label="Seções da análise">
             <button class="tab-btn active" onclick="setMode('acoes')" id="btn-acoes">Ações</button>
             <button class="tab-btn" onclick="setMode('fiis')" id="btn-fiis">FIIs</button>
             <button class="tab-btn" onclick="setMode('favoritos')" id="btn-favoritos">Favoritos</button>
-        </div>
+            <button class="tab-btn" onclick="setMode('auxiliar')" id="btn-auxiliar">Auxiliar ✦</button>
+        </nav>
 
         <div class="perfil-row" id="perfilRow">
-            <span class="perfil-label">Avaliar sob a ótica do Perfil:</span>
+            <label class="perfil-label" for="select-perfil">Analisar pelo perfil:</label>
             <div class="perfil-selector">
                 <select id="select-perfil" onchange="setPerfil(this.value)">
                     <option value="conservador">Conservador (Foco em Segurança)</option>
@@ -144,20 +148,25 @@
         </div>
 
         <div class="search-box" id="searchBox">
-            <input type="text" id="tickerInput" placeholder="Digite o ticker (ex: PETR4, BBAS3)">
+            <label class="sr-only" for="tickerInput">Ticker do ativo</label>
+            <input type="text" id="tickerInput" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="Digite o ticker (ex.: PETR4, BBAS3)">
             <button id="searchBtn" onclick="buscar()">Pesquisar</button>
         </div>
 
-        <div id="resultContainer">
-            <div class="message">Pronto para buscar Ações.</div>
+        <p class="search-footnote" id="searchFootnote">As cores destacam faixas de indicadores para o perfil escolhido. Não representam uma recomendação de investimento.</p>
+        <div id="resultContainer" aria-busy="false">
+            <div class="message"><h3>Sua análise começa com um ticker.</h3><p>Pesquise uma ação ou selecione FIIs para explorar indicadores e simular sua renda.</p></div>
         </div>
+        <footer class="app-footer">Dados consultados no Investidor10 · Selic do Banco Central<br>Valores podem estar defasados. Projeções dependem das premissas e não garantem retornos.</footer>
     </div>
 
     <!-- Firebase + Script da Aplicação -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+        import { escapeHTML, priceComparison, snowballMarkup, mountSnowball, gordonMarkup, mountGordon } from './public/charts.js';
+        import { rememberAsset, mountAssistant, renderAssistantTab } from './public/auxiliar.js';
+        const API_BASE = location.hostname.endsWith('github.io') ? 'https://invistaai-ochre.vercel.app' : location.origin;
+        const validTicker = value => /^[A-Z][A-Z0-9]{3}\d{1,2}$/.test(value);
+        let auth, db, doc, getDoc, setDoc, arrayUnion, arrayRemove, signOut;
 
         // SUA CHAVE DA API AQUI
         const firebaseConfig = {
@@ -170,23 +179,21 @@
             measurementId: "G-K3N499C5X9"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
         let currentUser = null;
         let userFavorites = [];
         let currentMode = 'acoes';
         let currentPerfil = 'moderado';
+        let searchController = null;
+        let searchVersion = 0;
 
         // 1. DICIONÁRIO COMPLETO DE DÚVIDAS (?)
         const TOOLTIPS = {
             'Cotação Atual': 'Preço atual de negociação na bolsa.',
             'Valor Justo (Graham Padrão)': 'Estimativa de valor justo pela fórmula clássica de Graham, cruzando lucro e patrimônio por ação.',
-            'Valor Justo (Graham Rev.)': 'Versão revisada da fórmula de Graham, que também considera o crescimento esperado e a taxa de juros atual.',
-            'Valor Justo (Graham Tupiniquim)': 'Adaptação da fórmula de Graham com um multiplicador mais conservador, pensada para o patamar de juros no Brasil.',
-            'Preço Teto (Bazin 6%)': 'Preço máximo que, dado o histórico de dividendos, ainda garante um yield mínimo de 6% ao ano.',
-            'Preço Teto (Bazin 8%)': 'Preço máximo que, dado o histórico de dividendos, ainda garante um yield mínimo de 8% ao ano.',
+            'Valor Justo (Graham Rev.)': 'Cenário adaptado de Graham com o CAGR histórico de lucros de 5 anos e a Selic. Crescimento passado não é uma previsão.',
+            'Valor Justo (Graham Tupiniquim)': 'Adaptação experimental do aplicativo: usa base 5,5 e Selic. Não existe uma fórmula brasileira universal com esse nome.',
+            'Preço Teto (Bazin 6%)': 'Preço associado a um yield estimado de 6% se os dividendos dos últimos 12 meses se repetirem. Não garante renda futura.',
+            'Preço Teto (Bazin 8%)': 'Preço associado a um yield estimado de 8% se os dividendos dos últimos 12 meses se repetirem. Não garante renda futura.',
             'P/L': 'Quantos anos de lucro atual seriam necessários para "pagar" o preço da ação. Quanto menor, mais barata ela parece frente ao lucro.',
             'P/VP': 'Compara o preço com o valor patrimonial por ação. Próximo de 1 indica preço próximo ao valor contábil.',
             'DY (12M)': 'Percentual de dividendos pagos nos últimos 12 meses em relação à cotação atual.',
@@ -204,7 +211,7 @@
             'VPA (Valor Patr. Ação)': 'Patrimônio líquido dividido pelo número de ações — o valor contábil de cada ação.',
             'CAGR Crescimento 5A': 'Crescimento médio anual do lucro nos últimos 5 anos.',
             'Giro Ativos': 'Quanto a empresa gera de receita para cada real investido em ativos — mede a eficiência no uso dos recursos.',
-            'Cotas p/ Bola de Neve (EBN)': 'Número de cotas necessárias para que o próprio rendimento mensal já compre uma cota nova, sem novo aporte.',
+            'Cotas p/ Bola de Neve (EBN)': 'Cotas necessárias para comprar uma nova cota com a renda, se o último rendimento por cota e o preço consultado se mantiverem.',
             'Valor Necessário (VN)': 'Quanto capital, ao preço atual da cota, seria preciso para atingir a bola de neve.',
             'Último Rendimento': 'Valor por cota pago no último mês.',
             'Liquidez Diária': 'Volume médio negociado por dia — indica a facilidade de comprar ou vender sem afetar o preço.',
@@ -220,88 +227,39 @@
             'Taxa de Admin.': 'Percentual cobrado anualmente pela gestora sobre o patrimônio do fundo.'
         };
 
-        // 2. DICIONÁRIO DO MENTOR INTELIGENTE (✓ e ✗)
-        function getStatusReason(title, cls, mode, perfil, valRaw) {
-            if (cls === 'neutral') return '';
-
-            let val = null;
-            if (valRaw && valRaw !== '-' && valRaw !== 'N/D') {
-                const cleanStr = valRaw.toString().replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
-                val = parseFloat(cleanStr);
-            }
-
-            if (mode === 'fiis') {
-                if (title === 'P/VP') {
-                    if (cls === 'bad') {
-                        if (val !== null && val < 0.80) return 'Fundo negociado muito abaixo do seu valor patrimonial, provavelmente com problemas gravíssimos.';
-                        return 'Pagando ágio. O preço da cota está muito acima do que os ativos do fundo realmente valem.';
-                    }
-                    return 'Preço atrativo. Fundo sendo negociado a um valor justo ou com leve desconto.';
-                }
-                if (title === 'DY (12M)') {
-                    if (cls === 'bad') {
-                        if (val !== null && val > 15) return 'Sinal de Alerta! DY irreal/insustentável (> 15%). Indica queda abrupta no valor da cota ou lucro não-recorrente (ex: venda de imóveis).';
-                        return 'Baixa distribuição de lucros para o risco de um Fundo Imobiliário.';
-                    }
-                    return 'Forte geração de renda mensal em patamares saudáveis.';
-                }
-            }
-
-            const explanations = {
-                'DY (12M)': {
-                    conservador: { good: 'Forte geração de renda passiva (≥ 6%), essencial para o perfil.', bad: 'Renda baixa (< 4%). Não compensa o risco para perfil conservador.' },
-                    default: { good: 'Bom pagamento de dividendos.', bad: 'Baixa distribuição de lucros.' }
-                },
-                'P/L': {
-                    conservador: { good: 'Ação barata (≤ 10). Alta margem de segurança.', bad: 'Ação cara (> 15). Risco elevado para o perfil.' },
-                    arrojado: { good: 'Preço aceitável considerando potencial de crescimento.', bad: 'Múltiplo muito esticado (> 30). Risco de bolha.' },
-                    default: { good: 'Valuation atrativo.', bad: 'Ação cara frente aos lucros atuais.' }
-                },
-                'P/VP': {
-                    conservador: { good: 'Negociada próxima ou abaixo do valor patrimonial.', bad: 'Ágio alto (> 2.0). Reduz a segurança.' },
-                    arrojado: { good: 'Ágio aceitável para empresas de alto ROE.', bad: 'Extremamente cara frente ao patrimônio (> 5.0).' },
-                    default: { good: 'Desconto patrimonial saudável.', bad: 'Muito acima do valor contábil.' }
-                },
-                'ROE': {
-                    arrojado: { good: 'Altíssima eficiência (≥ 15%). Motor de multiplicação de capital.', bad: 'Baixa rentabilidade (< 10%). Ruim para teses de crescimento.' },
-                    default: { good: 'Boa rentabilidade patrimonial.', bad: 'Empresa ineficiente em gerar valor.' }
-                },
-                'Payout': {
-                    conservador: { good: 'Distribui a maior parte do lucro. Foco em renda.', bad: 'Retém muitos lucros. Fere a tese de dividendos.' },
-                    arrojado: { good: 'Retém lucros para financiar crescimento exponencial.', bad: 'Distribui demais, matando o potencial de expansão.' },
-                    default: { good: 'Equilíbrio saudável na distribuição.', bad: 'Desbalanceado para o perfil.' }
-                },
-                'Dív. Líq./EBITDA': {
-                    conservador: { good: 'Endividamento irrisório. Empresa blindada contra crises.', bad: 'Alavancagem perigosa para o perfil.' },
-                    arrojado: { good: 'Alavancagem controlada financiando crescimento.', bad: 'Risco de insolvência elevado (> 4.0).' },
-                    default: { good: 'Dívida sob controle.', bad: 'Endividamento preocupante.' }
-                },
-                'Dív. Líq./Patrimônio': {
-                    conservador: { good: 'Baixa dependência de bancos (≤ 0.5).', bad: 'Capital de terceiros alto demais (> 0.8).' },
-                    arrojado: { good: 'Uso inteligente de dívida.', bad: 'Passivo asfixiando o patrimônio (> 2.0).' },
-                    default: { good: 'Estrutura de capital saudável.', bad: 'Passivo elevado.' }
-                },
-                'CAGR Crescimento 5A': {
-                    conservador: { good: 'Crescimento consistente. Protege contra inflação.', bad: 'Lucros estagnados ou caindo.' },
-                    arrojado: { good: 'Crescimento acelerado (≥ 15%). Gatilho de valorização.', bad: 'Crescimento insuficiente para tese arrojada.' },
-                    default: { good: 'Bom ritmo de expansão.', bad: 'Perdendo tração no lucro.' }
-                },
-                'Vacância': {
-                    conservador: { good: 'Imóveis ocupados. Geração de renda previsível.', bad: 'Alta desocupação. Risco de queda nos proventos.' },
-                    default: { good: 'Vacância controlada.', bad: 'Portfólio muito vazio.' }
-                }
+        // Explain the metric without inferring safety or quality from one threshold.
+        function getStatusReason(title, cls, mode, perfil) {
+            const descriptions = {
+                'P/L': 'Compara a cotação ao lucro por ação. Um múltiplo baixo também pode refletir risco ou lucros extraordinários; lucro negativo pede outra leitura.',
+                'P/VP': mode === 'fiis' ? 'Compara a cota ao patrimônio contábil. Desconto não comprova oportunidade; avalie a qualidade dos ativos e os riscos da carteira.' : 'Compara o preço ao patrimônio contábil. Interprete junto do setor, da rentabilidade e da qualidade do patrimônio.',
+                'DY (12M)': 'Relaciona os proventos passados ao preço atual. Um DY alto pode resultar de queda na cotação ou pagamentos extraordinários; não garante renda futura.',
+                'ROE': 'Mede lucro sobre patrimônio. Patrimônio reduzido ou alavancagem podem elevar o ROE sem melhorar a qualidade do negócio.',
+                'Margem Líquida': 'Mostra a parcela da receita convertida em lucro. Compare com empresas do mesmo setor e observe eventos não recorrentes.',
+                'Dív. Líq./Patrimônio': 'Compara dívida líquida e patrimônio. Valores negativos podem indicar caixa líquido; patrimônio negativo exige análise específica.',
+                'Liquidez Corrente': 'Compara ativos e passivos de curto prazo. A composição e a qualidade desses ativos também importam.',
+                'Liquidez Diária': 'É o volume negociado. Menor liquidez pode dificultar a compra ou a venda no preço desejado.',
+                'Valor Patrimonial': 'Mede o patrimônio total do fundo. Tamanho não garante qualidade, diversificação ou retorno.',
+                'Vacância': 'Indica espaços ou receitas potenciais sem ocupação. Avalie contratos, localização e a evolução desse índice.',
+                'Nº de Cotistas': 'Mostra a base de investidores do fundo. Uma base maior não elimina riscos nem garante liquidez.',
             };
-
-            const expl = explanations[title];
-            if (!expl) return '';
-            const perfExpl = expl[perfil] || expl['default'];
-            if (!perfExpl) return '';
-            
-            return perfExpl[cls] || '';
+            const profile = { conservador: 'conservador', moderado: 'moderado', arrojado: 'arrojado' }[perfil] || 'selecionado';
+            const classification = cls === 'good' ? 'na faixa favorável' : 'em faixa de atenção';
+            return `Indicador ${classification} para o perfil ${profile}. ${descriptions[title] || 'Compare este valor com os demais indicadores e com as premissas do método.'}`;
         }
-
-        // 3. OUVINTE DE ESTADO E AUTENTICAÇÃO
-        onAuthStateChanged(auth, async (user) => {
+        // Authentication loads independently, so a CDN failure does not disable research.
+        async function startAuthentication() {
+          try {
+            const [firebase, authentication, firestore] = await Promise.all([
+                import('https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js'),
+                import('https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js'),
+                import('https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js'),
+            ]);
+            const app = firebase.initializeApp(firebaseConfig);
+            auth = authentication.getAuth(app);
+            db = firestore.getFirestore(app);
+            ({ doc, getDoc, setDoc, arrayUnion, arrayRemove } = firestore);
+            ({ signOut } = authentication);
+            authentication.onAuthStateChanged(auth, async (user) => {
             const btnAuth = document.getElementById('btn-auth');
             if (user) {
                 currentUser = user;
@@ -313,28 +271,47 @@
                 
                 // Busca os favoritos
                 const docRef = doc(db, "users", currentUser.uid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists() && docSnap.data().favoritos) {
-                    userFavorites = docSnap.data().favoritos;
-                }
+                try {
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists() && Array.isArray(docSnap.data().favoritos)) userFavorites = docSnap.data().favoritos.filter(t => typeof t === 'string' && validTicker(t));
+                } catch { console.warn('Não foi possível carregar os favoritos.'); }
             } else {
                 currentUser = null;
                 userFavorites = [];
                 btnAuth.innerText = 'Entrar';
                 btnAuth.onclick = () => window.location.href = 'login.html';
             }
-        });
+                if (currentMode === 'favoritos') abrirFavoritos();
+            });
+          } catch { console.warn('Autenticação indisponível; as consultas públicas continuam funcionando.'); }
+        }
 
         // 4. FUNÇÕES DE INTERFACE E ABAS
         window.setMode = (mode) => {
+            if (!['acoes', 'fiis', 'favoritos', 'auxiliar'].includes(mode)) return;
+            searchController?.abort();
+            searchVersion += 1;
             currentMode = mode;
-            document.getElementById('btn-acoes').classList.remove('active');
-            document.getElementById('btn-fiis').classList.remove('active');
-            document.getElementById('btn-favoritos').classList.remove('active');
-            document.getElementById(`btn-${mode}`).classList.add('active');
+            document.querySelectorAll('.tab-btn').forEach(button => {
+                const active = button.id === `btn-${mode}`;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-current', active ? 'page' : 'false');
+            });
+            document.getElementById('searchBtn').disabled = false;
+            document.getElementById('searchBtn').textContent = 'Pesquisar';
+            document.getElementById('resultContainer').setAttribute('aria-busy', 'false');
 
             const searchBox = document.getElementById('searchBox');
             const perfilRow = document.getElementById('perfilRow');
+            document.getElementById('pageIntro').hidden = mode === 'auxiliar';
+            document.getElementById('searchFootnote').hidden = mode === 'auxiliar' || mode === 'favoritos';
+
+            if (mode === 'auxiliar') {
+                searchBox.style.display = 'none';
+                perfilRow.style.display = 'none';
+                renderAssistantTab(document.getElementById('resultContainer'), API_BASE, currentPerfil);
+                return;
+            }
 
             if (mode === 'favoritos') {
                 searchBox.style.display = 'none';
@@ -354,11 +331,12 @@
         window.setPerfil = (perfil) => {
             currentPerfil = perfil;
             const ticker = document.getElementById('tickerInput').value.trim();
-            if (ticker && document.querySelector('.results-header')) window.buscar();
+            if (ticker && (document.querySelector('.results-header') || searchController)) window.buscar();
         };
 
         // 5. FAVORITOS E AUTO-PESQUISA
         window.toggleFavorito = async (btn, ticker) => {
+            if (!validTicker(ticker)) return;
             if (!currentUser) {
                 alert("Você precisa estar logado para salvar favoritos!");
                 window.location.href = 'login.html';
@@ -463,8 +441,8 @@
         }
 
         function createCard(title, dataObj) {
-            const val = dataObj?.value || '-';
-            const cls = dataObj?.class || 'neutral';
+            const val = escapeHTML(dataObj?.value ?? '-');
+            const cls = ['good', 'bad', 'neutral'].includes(dataObj?.class) ? dataObj.class : 'neutral';
             const caption = dataObj?.margem !== undefined ? formatMargem(dataObj.margem) : '';
             
             // O "?" de dúvida original
@@ -475,7 +453,7 @@
             let statusBadgeHTML = '';
             if (cls === 'good' || cls === 'bad') {
                 const icon = cls === 'good' ? '✓' : '✗';
-                const reason = getStatusReason(title, cls, currentMode, currentPerfil, val);
+                const reason = getStatusReason(title, cls, currentMode, currentPerfil);
                 if (reason) {
                     const statusTitle = cls === 'good' ? 'Sinal Positivo' : 'Sinal de Alerta';
                     statusBadgeHTML = `<span class="status-badge ${cls}" tabindex="0">${icon}<span class="help-tooltip"><strong>${statusTitle}</strong><br>${reason}</span></span>`;
@@ -503,31 +481,55 @@
             const container = document.getElementById('resultContainer');
             const btn = document.getElementById('searchBtn');
 
-            if (!ticker) return;
+            if (!['acoes', 'fiis'].includes(currentMode)) return;
+            if (!validTicker(ticker)) {
+                searchController?.abort();
+                searchController = null;
+                searchVersion += 1;
+                btn.disabled = false;
+                btn.textContent = 'Pesquisar';
+                container.setAttribute('aria-busy', 'false');
+                container.innerHTML = '<div class="message" role="alert">Digite um ticker válido da B3, como PETR4, B3SA3 ou HCTR11.</div>';
+                return;
+            }
+            searchController?.abort();
+            const controller = new AbortController();
+            searchController = controller;
+            const version = ++searchVersion;
+            const mode = currentMode;
+            const perfil = currentPerfil;
+            let timedOut = false;
+            const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 40000);
 
             btn.disabled = true;
-            container.innerHTML = `<div class="message">Aspirando dados de <strong>${ticker}</strong>... Aguarde.</div>`;
+            btn.textContent = 'Consultando…';
+            container.setAttribute('aria-busy', 'true');
+            container.innerHTML = `<div class="message loading-message" role="status">Consultando os indicadores de <strong>${ticker}</strong>…<p class="field-hint">A primeira consulta depende do tempo de resposta da fonte.</p></div>`;
             
-            const baseUrl = 'https://invistaai-ochre.vercel.app'; 
-            const endpoint = currentMode === 'acoes' ? `${baseUrl}/api/acoes` : `${baseUrl}/api/fiis`;
+            const endpoint = `${API_BASE}/api/${mode}`;
 
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ticker, perfil: currentPerfil })
+                    body: JSON.stringify({ ticker, perfil }),
+                    signal: controller.signal,
                 });
 
                 const data = await response.json();
+                if (version !== searchVersion) return;
 
                 if (!response.ok) {
-                    container.innerHTML = `<div class="message" style="color: var(--bad); border-color: #ef9a9a;">${data.error}</div>`;
+                    container.innerHTML = `<div class="message" role="alert" style="color: var(--bad);">${escapeHTML(data.error || 'Não foi possível consultar este ativo.')}</div>`;
                     return;
                 }
+                if (!validTicker(data.ticker)) throw new Error('Resposta inválida da fonte.');
+                data.perfil = perfil;
+                data.selicUtilizada = typeof data.selicUtilizada === 'number' ? data.selicUtilizada : 'indisponível';
 
                 const isFav = userFavorites.includes(data.ticker);
 
-                if (currentMode === 'acoes') {
+                if (mode === 'acoes') {
                     container.innerHTML = `
                         <div class="results-header">
                             Relatório Fundamentalista
@@ -536,7 +538,7 @@
                                 <button class="btn-fav ${isFav ? 'active' : ''}" onclick="toggleFavorito(this, '${data.ticker}')" title="Favoritar">★</button>
                             </span>
                         </div>
-                        <div class="selic-info">Selic: ${data.selicUtilizada}% · Perfil: ${data.perfil}</div>
+                        <div class="selic-info">Selic: ${typeof data.selicUtilizada === 'number' ? data.selicUtilizada + '%' : data.selicUtilizada} · Perfil: ${data.perfil}</div>
                         
                         <div class="section-title">Valuation (Preço Justo)</div>
                         <div class="results-grid">
@@ -626,10 +628,38 @@
                         </div>
                     `;
                 }
+                const firstSection = container.querySelector('.section-title');
+                firstSection?.insertAdjacentHTML('beforebegin', mode === 'acoes' ? priceComparison(data) : snowballMarkup(data));
+                if (mode === 'fiis') mountSnowball(container);
+                if (mode === 'acoes') {
+                    container.querySelector('.comparison-chart')?.closest('section').insertAdjacentHTML('afterend', gordonMarkup(data));
+                    mountGordon(container);
+                }
+                const metadata = data.metadata || {};
+                const date = new Date(metadata.updatedAt);
+                const details = document.createElement('p');
+                details.className = 'field-hint';
+                details.textContent = `Fonte: Investidor10${Number.isFinite(date.getTime()) ? ' · Consulta em ' + date.toLocaleString('pt-BR') : ''}${metadata.cacheAgeMs >= 1000 ? ' · Dados em cache' : ''}. A cotação não é em tempo real.`;
+                container.querySelector('.selic-info')?.append(details);
+                if (metadata.selic?.stale) {
+                    const note = document.createElement('p');
+                    note.className = 'field-hint';
+                    note.textContent = 'Selic: a consulta mais recente falhou. Os cálculos usam o último valor disponível.';
+                    container.querySelector('.selic-info')?.append(note);
+                }
+                rememberAsset(data, mode);
+                mountAssistant(container, { ticker: data.ticker, tipo: mode, perfil }, API_BASE);
             } catch (error) {
-                container.innerHTML = `<div class="message" style="color: var(--bad);">Erro de conexão com o Motor Quântico.</div>`;
+                if (version !== searchVersion || (error.name === 'AbortError' && !timedOut)) return;
+                container.innerHTML = `<div class="message" role="alert" style="color: var(--bad);">${timedOut ? 'A fonte demorou para responder. Tente consultar novamente em instantes.' : 'Não foi possível concluir a consulta. Verifique sua conexão e tente novamente.'}</div>`;
             } finally {
-                btn.disabled = false;
+                clearTimeout(timeout);
+                if (version === searchVersion) {
+                    btn.disabled = false;
+                    btn.textContent = 'Pesquisar';
+                    container.setAttribute('aria-busy', 'false');
+                    searchController = null;
+                }
             }
         };
 
@@ -639,7 +669,7 @@
 
         async function sincronizarComNuvem(listaAtualizada) {
   try {
-    await fetch('https://invistaai-ochre.vercel.app/api/favoritos/sync', {
+    await fetch(`${API_BASE}/api/favoritos/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -652,6 +682,8 @@
     console.error("Erro na comunicação com a nuvem:", error);
   }
 }
+        document.getElementById('btn-acoes').setAttribute('aria-current', 'page');
+        startAuthentication();
     </script>
 </body>
 </html>
