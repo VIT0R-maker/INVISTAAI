@@ -1,0 +1,87 @@
+// Optional UI check: install Playwright, or provide PLAYWRIGHT_MODULE as a module URL.
+// Run the app first. BASE_URL defaults to the local server. All financial data here is a fixture.
+import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
+import { buildFiiAnalysis, buildStockAnalysis } from '../lib/analysis.js';
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'msedge', headless: true });
+await mkdir('artifacts', { recursive: true });
+const metadata = { source: 'https://investidor10.com.br/fiis/hctr11/', updatedAt: new Date().toISOString(), cacheAgeMs: 0 };
+const fii = buildFiiAnalysis({ dictNum: { cotacao: 12.99, ultimorendimento: 0.21, pvp: 0.12, dividendyield: 24.79 }, dictRaw: { segmento: 'Recebíveis' } }, 'HCTR11', 'moderado', metadata);
+const stock = buildStockAnalysis({ cotacao: 40, lpa: 4, vpa: 25, cagrlucros5anos: 7, dividendyield: 6, pl: 10, pvp: 1.6 }, { valor: 11 }, 'PETR4', 'moderado', metadata);
+const page = await browser.newPage({ viewport: { width: 1440, height: 1100 } });
+const errors = [];
+page.on('pageerror', error => errors.push(error.message));
+let chatCalls = [];
+await page.route('**/api/fiis', route => route.fulfill({ json: fii }));
+await page.route('**/api/acoes', route => route.fulfill({ json: stock }));
+await page.route('**/api/auxiliar/status', route => route.fulfill({ json: { configured: true, model: 'test' } }));
+await page.route('**/api/auxiliar', route => {
+  chatCalls.push(route.request().postDataJSON());
+  return route.fulfill({ json: { answer: '63 cotas custam R$ 818,37 e estimam R$ 13,23 se o dividendo se repetir.', model: 'test', context: { updatedAt: metadata.updatedAt } } });
+});
+// Verify that market UI works even when optional auth CDN is unavailable.
+await page.route('**/www.gstatic.com/firebasejs/**', route => route.abort());
+try {
+  await page.goto(process.env.BASE_URL || 'http://127.0.0.1:3000');
+  await page.locator('#btn-fiis').click();
+  await page.locator('#tickerInput').fill('HCTR11');
+  await page.locator('#searchBtn').click();
+  await page.locator('#sim-quotas').waitFor();
+  assert.equal(await page.locator('#sim-quotas').inputValue(), '62');
+  assert.equal(await page.locator('#sim-budget').inputValue(), '805.38');
+  assert.equal(await page.locator('#sim-income').inputValue(), '13.02');
+  await page.locator('#sim-quotas').fill('63');
+  assert.equal(await page.locator('#sim-budget').inputValue(), '818.37');
+  assert.equal(await page.locator('#sim-income').inputValue(), '13.23');
+  await page.locator('#sim-budget').fill('805.38');
+  assert.equal(await page.locator('#sim-quotas').inputValue(), '62');
+  await page.locator('#sim-income').fill('13.23');
+  assert.equal(await page.locator('#sim-quotas').inputValue(), '63');
+  assert.equal(await page.locator('#sim-budget').inputValue(), '818.37');
+  await page.locator('.snowball').screenshot({ path: 'artifacts/fii-desktop.png' });
+  await page.locator('#assistant-message').fill('Quanto custam 63 cotas?');
+  await page.locator('.chat-send').click();
+  await page.locator('.from-assistant').waitFor();
+  assert.equal(chatCalls[0].ticker, 'HCTR11');
+  assert.equal(chatCalls[0].tipo, 'fiis');
+  await page.locator('#btn-auxiliar').click();
+  assert.match(await page.locator('.chat-log').innerText(), /818,37/);
+  await page.locator('#assistant-message').fill('E o provento?');
+  await page.locator('.chat-send').click();
+  await page.waitForFunction(() => document.querySelectorAll('.from-assistant').length === 2);
+  assert.equal(chatCalls[1].history.length, 2);
+  await page.locator('.assistant-context-form select[name="perfil"]').selectOption('conservador');
+  await page.locator('.assistant-context-form button[type="submit"]').click();
+  await page.locator('#btn-favoritos').click();
+  await page.locator('#btn-auxiliar').click();
+  assert.equal(await page.locator('.assistant-context-form select[name="perfil"]').inputValue(), 'conservador');
+  await page.locator('.assistant-panel').screenshot({ path: 'artifacts/auxiliar-desktop.png' });
+  await page.locator('#btn-acoes').click();
+  await page.locator('#tickerInput').fill('PETR4');
+  await page.locator('#searchBtn').click();
+  await page.locator('.comparison-chart').waitFor();
+  assert.equal(await page.locator('.comparison-chart .comparison-row').count(), 6);
+  await page.locator('.gordon-panel summary').click();
+  await page.locator('#gordon-dividend').fill('3');
+  await page.locator('#gordon-return').fill('12');
+  await page.locator('#gordon-growth').fill('3');
+  assert.match(await page.locator('.gordon-chart').innerText(), /34,33/);
+  await page.locator('#gordon-growth').fill('12');
+  assert.equal(await page.locator('.gordon-chart .comparison-row').count(), 0);
+  await page.locator('#gordon-growth').fill('3');
+  await page.locator('.comparison-chart').screenshot({ path: 'artifacts/acoes-desktop.png' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#btn-fiis').click();
+  await page.locator('#tickerInput').fill('HCTR11');
+  await page.locator('#searchBtn').click();
+  await page.locator('#sim-quotas').waitFor();
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'mobile page overflows horizontally');
+  await page.locator('.snowball').screenshot({ path: 'artifacts/fii-mobile.png' });
+  await page.locator('#btn-favoritos').click();
+  assert.match(await page.locator('#resultContainer').innerText(), /login/i);
+  assert.deepEqual(errors, []);
+  console.log('UI passed: FII 62/63 quotas, budget and income, contextual Gemini/history, four tabs, price chart, Gordon, mobile fit and offline auth.');
+} finally {
+  await browser.close();
+}
