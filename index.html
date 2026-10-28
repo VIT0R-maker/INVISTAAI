@@ -116,6 +116,8 @@
         .fav-item-btn:hover { border-color: var(--primary); transform: translateY(-2px); }
     </style>
     <link rel="stylesheet" href="./public/enhancements.css">
+    <link rel="stylesheet" href="./public/compare.css">
+    <link rel="stylesheet" href="./public/tooltips.css">
 </head>
 <body>
 
@@ -134,6 +136,7 @@
             <button class="tab-btn" onclick="setMode('fiis')" id="btn-fiis">FIIs</button>
             <button class="tab-btn" onclick="setMode('favoritos')" id="btn-favoritos">Favoritos</button>
             <button class="tab-btn" onclick="setMode('auxiliar')" id="btn-auxiliar">Auxiliar ✦</button>
+            <button class="tab-btn" onclick="setMode('comparar')" id="btn-comparar">Comparar</button>
         </nav>
 
         <div class="perfil-row" id="perfilRow">
@@ -164,6 +167,10 @@
     <script type="module">
         import { escapeHTML, priceComparison, snowballMarkup, mountSnowball, gordonMarkup, mountGordon } from './public/charts.js';
         import { rememberAsset, mountAssistant, renderAssistantTab } from './public/auxiliar.js';
+        import { normalizeTicker } from './public/tickers.js';
+        import { renderCompareTab } from './public/compare.js';
+        import { initTooltips, hideTooltips } from './public/tooltips.js';
+        initTooltips();
         const API_BASE = location.hostname.endsWith('github.io') ? 'https://invistaai-ochre.vercel.app' : location.origin;
         const validTicker = value => /^[A-Z][A-Z0-9]{3}\d{1,2}$/.test(value);
         let auth, db, doc, getDoc, setDoc, arrayUnion, arrayRemove, signOut;
@@ -185,6 +192,7 @@
         let currentPerfil = 'moderado';
         let searchController = null;
         let searchVersion = 0;
+        let cleanupCompare = null;
 
         // 1. DICIONÁRIO COMPLETO DE DÚVIDAS (?)
         const TOOLTIPS = {
@@ -213,7 +221,7 @@
             'Giro Ativos': 'Quanto a empresa gera de receita para cada real investido em ativos — mede a eficiência no uso dos recursos.',
             'Cotas p/ Bola de Neve (EBN)': 'Cotas necessárias para comprar uma nova cota com a renda, se o último rendimento por cota e o preço consultado se mantiverem.',
             'Valor Necessário (VN)': 'Quanto capital, ao preço atual da cota, seria preciso para atingir a bola de neve.',
-            'Último Rendimento': 'Valor por cota pago no último mês.',
+            'Último Rendimento': 'Último provento pago por cota. O percentual divide esse valor pela cotação consultada: rendimento ÷ cotação × 100. Refere-se a um pagamento, não ao DY de 12 meses nem a um pagamento futuro garantido.',
             'Liquidez Diária': 'Volume médio negociado por dia — indica a facilidade de comprar ou vender sem afetar o preço.',
             'Variação (12M)': 'Variação da cotação nos últimos 12 meses.',
             'Val. Patr. p/ Cota': 'Valor patrimonial do fundo dividido pelo número de cotas.',
@@ -288,7 +296,10 @@
 
         // 4. FUNÇÕES DE INTERFACE E ABAS
         window.setMode = (mode) => {
-            if (!['acoes', 'fiis', 'favoritos', 'auxiliar'].includes(mode)) return;
+            if (!['acoes', 'fiis', 'favoritos', 'auxiliar', 'comparar'].includes(mode)) return;
+            hideTooltips();
+            cleanupCompare?.();
+            cleanupCompare = null;
             searchController?.abort();
             searchVersion += 1;
             currentMode = mode;
@@ -303,8 +314,15 @@
 
             const searchBox = document.getElementById('searchBox');
             const perfilRow = document.getElementById('perfilRow');
-            document.getElementById('pageIntro').hidden = mode === 'auxiliar';
-            document.getElementById('searchFootnote').hidden = mode === 'auxiliar' || mode === 'favoritos';
+            document.getElementById('pageIntro').hidden = ['auxiliar', 'comparar'].includes(mode);
+            document.getElementById('searchFootnote').hidden = ['auxiliar', 'favoritos', 'comparar'].includes(mode);
+
+            if (mode === 'comparar') {
+                searchBox.style.display = 'none';
+                perfilRow.style.display = 'none';
+                cleanupCompare = renderCompareTab(document.getElementById('resultContainer'), API_BASE, currentPerfil);
+                return;
+            }
 
             if (mode === 'auxiliar') {
                 searchBox.style.display = 'none';
@@ -322,7 +340,7 @@
 
             searchBox.style.display = 'flex';
             perfilRow.style.display = 'flex';
-            const placeholder = mode === 'acoes' ? 'ex: PETR4, BBAS3, WEGE3' : 'ex: MXRF11, HGLG11, KNCR11';
+            const placeholder = mode === 'acoes' ? 'ex: PETR4, BBAS3, WEGE3' : 'ex: MXRF ou MXRF11';
             document.getElementById('tickerInput').placeholder = `Digite o ticker (${placeholder})`;
             document.getElementById('tickerInput').value = '';
             document.getElementById('resultContainer').innerHTML = `<div class="message">Pronto para buscar ${mode === 'acoes' ? 'Ações' : 'FIIs'}.</div>`;
@@ -442,12 +460,14 @@
 
         function createCard(title, dataObj) {
             const val = escapeHTML(dataObj?.value ?? '-');
+            const percentage = Number.isFinite(dataObj?.percentual)
+                ? ` <span class="card-percentage" aria-label="Percentual da cotação atual">(${escapeHTML(dataObj.percentualValue)})</span>` : '';
             const cls = ['good', 'bad', 'neutral'].includes(dataObj?.class) ? dataObj.class : 'neutral';
             const caption = dataObj?.margem !== undefined ? formatMargem(dataObj.margem) : '';
             
             // O "?" de dúvida original
             const textoDuvida = TOOLTIPS[title] || '';
-            const helpHTML = textoDuvida ? `<span class="help-icon" tabindex="0">?<span class="help-tooltip">${textoDuvida}</span></span>` : '';
+            const helpHTML = textoDuvida ? `<button type="button" class="help-icon" aria-label="Sobre ${escapeHTML(title)}" aria-expanded="false">?<span class="help-tooltip">${textoDuvida}</span></button>` : '';
 
             // O novo "✓" ou "✗" do Mentor Inteligente
             let statusBadgeHTML = '';
@@ -456,7 +476,7 @@
                 const reason = getStatusReason(title, cls, currentMode, currentPerfil);
                 if (reason) {
                     const statusTitle = cls === 'good' ? 'Sinal Positivo' : 'Sinal de Alerta';
-                    statusBadgeHTML = `<span class="status-badge ${cls}" tabindex="0">${icon}<span class="help-tooltip"><strong>${statusTitle}</strong><br>${reason}</span></span>`;
+                    statusBadgeHTML = `<button type="button" class="status-badge ${cls}" aria-label="Avaliação de ${escapeHTML(title)}" aria-expanded="false">${icon}<span class="help-tooltip"><strong>${statusTitle}</strong><br>${reason}</span></button>`;
                 } else {
                     statusBadgeHTML = `<span class="status-badge ${cls}">${icon}</span>`;
                 }
@@ -467,22 +487,23 @@
                     <div class="card-title">${title}${helpHTML}${statusBadgeHTML}</div>
                     <div class="card-body">
                         ${getIcon(cls)}
-                        <span class="card-value">${val}</span>
+                        <span class="card-value">${val}${percentage}</span>
                     </div>
                     ${caption}
                 </div>
             `;
         }
 
-        function apenasValor(dataObj) { return { value: dataObj?.value || '-', class: 'neutral' }; }
+        function apenasValor(dataObj) { return { ...dataObj, value: dataObj?.value || '-', class: 'neutral' }; }
 
         window.buscar = async () => {
-            const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+            hideTooltips();
+            const ticker = normalizeTicker(document.getElementById('tickerInput').value, currentMode);
             const container = document.getElementById('resultContainer');
             const btn = document.getElementById('searchBtn');
 
             if (!['acoes', 'fiis'].includes(currentMode)) return;
-            if (!validTicker(ticker)) {
+            if (!ticker) {
                 searchController?.abort();
                 searchController = null;
                 searchVersion += 1;
@@ -492,6 +513,7 @@
                 container.innerHTML = '<div class="message" role="alert">Digite um ticker válido da B3, como PETR4, B3SA3 ou HCTR11.</div>';
                 return;
             }
+            document.getElementById('tickerInput').value = ticker;
             searchController?.abort();
             const controller = new AbortController();
             searchController = controller;

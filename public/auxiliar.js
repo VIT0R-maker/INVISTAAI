@@ -1,11 +1,11 @@
 import { escapeHTML } from './charts.js';
+import { normalizeTicker } from './tickers.js';
 
 const conversations = new Map();
 const profileNames = { conservador: 'Conservador', moderado: 'Moderado', arrojado: 'Arrojado' };
 let lastContext = null;
 let serviceState = null;
 let serviceCheckedAt = 0;
-const validTicker = ticker => /^[A-Z][A-Z0-9]{3}\d{1,2}$/.test(ticker);
 
 export function boundedHistory(messages) {
     const history = [];
@@ -191,8 +191,8 @@ export function renderAssistantTab(container, baseUrl, profile = 'moderado') {
     form.addEventListener('submit', event => {
         event.preventDefault();
         const values = new FormData(form);
-        const ticker = String(values.get('ticker')).trim().toUpperCase();
-        if (!validTicker(ticker)) {
+        const ticker = normalizeTicker(values.get('ticker'), values.get('tipo'));
+        if (!ticker) {
             form.querySelector('.context-error').textContent = 'Use um ticker da B3, como PETR4 ou HCTR11.';
             return;
         }

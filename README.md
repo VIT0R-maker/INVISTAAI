@@ -32,6 +32,14 @@ As respostas são exibidas como texto, sem executar HTML gerado. O histórico fi
 
 Com preço de R$ 12,99 e último rendimento de R$ 0,21, 62 cotas custam R$ 805,38 e simulam R$ 13,02 por pagamento. Com 63 cotas: R$ 818,37 e R$ 13,23. Aporte usa arredondamento para baixo em cotas inteiras; meta de renda usa arredondamento para cima. O pagamento do próximo mês e a elegibilidade na data-com não são confirmados pela simulação.
 
+## Comparação e uso no celular
+
+A quinta aba, **Comparar**, consulta dois ativos em paralelo e coloca os indicadores lado a lado. Cada coluna permite escolher Ações ou FIIs. O verde destaca apenas o valor favorecido pelo critério escrito na linha; empates, dados ausentes e comparações entre tipos distintos ficam neutros. Cotação nominal e valores de valuation não determinam um vencedor. Compare empresas do mesmo setor e fundos de estratégia semelhante: os indicadores desejáveis dependem da atividade, como explica a [SEC](https://www.sec.gov/about/reports-publications/beginners-guide-financial-statements).
+
+Nas entradas do tipo FII, `MXRF` é normalizado para `MXRF11` na busca, no Auxiliar, no comparador e na API. Um sufixo explícito diferente não é corrigido silenciosamente. O card Último Rendimento mantém o valor em reais e acrescenta `último provento / cotação × 100`; esse percentual é de um pagamento, separado do DY de 12 meses.
+
+Os balões dos indicadores usam uma camada fixa com limites da área visível. Eles mudam de posição perto das bordas, permitem rolagem de textos longos e abrem por toque, foco ou mouse. Outro toque no ícone, toque fora ou Escape fecha o balão.
+
 ## Revisão das fórmulas
 
 As quatro funções originais de valuation mantêm seus cálculos e comportamento. A apresentação oculta resultados não finitos/não positivos e identifica ausência de entradas necessárias. Não substituímos parâmetros das fórmulas existentes.
@@ -63,7 +71,7 @@ Essas melhorias reduzem trabalho repetido; a primeira consulta depende da fonte,
 npm test
 ```
 
-Testes cobrem parser, fórmulas existentes e Gordon, exemplo de FIIs, cache/concorrência, Selic, validação HTTP, arquivos privados e respostas/erros do Gemini simulado. Para teste visual opcional, instale Playwright no ambiente, inicie o servidor e rode `node test/browser.smoke.mjs`; `BROWSER_CHANNEL`, `BASE_URL` e `PLAYWRIGHT_MODULE` selecionam navegador, aplicação e runtime. Esse teste usa dados controlados, verifica quatro abas, chat contextual, campos vinculados, Gordon e largura móvel, e grava capturas em `artifacts/`.
+Testes cobrem parser, fórmulas existentes e Gordon, exemplo de FIIs, cache/concorrência, Selic, validação HTTP, arquivos privados e respostas/erros do Gemini simulado, além de comparação, entradas abreviadas e geometria dos balões. Para testes visuais opcionais, instale Playwright no ambiente, inicie o servidor e rode `node test/browser.smoke.mjs` e `node test/mobile-compare.smoke.mjs`; `BROWSER_CHANNEL`, `BASE_URL` e `PLAYWRIGHT_MODULE` selecionam navegador, aplicação e runtime. Os testes usam dados controlados e verificam as cinco abas, chat contextual, campos vinculados, Gordon, comparação, toque/teclado e largura móvel de 320/390 pixels. Capturas ficam em `artifacts/`.
 
 ## Estrutura e limites conhecidos
 

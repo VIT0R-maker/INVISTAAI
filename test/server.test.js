@@ -75,7 +75,9 @@ test('Express integration: public UI, asset analysis, cache, validation and priv
     assert.equal(result.ultimoRendimento.raw, 0.21);
     assert.equal(result.segmento.value, 'Recebíveis');
     assert.equal(result.dy.class, 'good');
-    const conservative = await (await post('/api/fiis', { ticker: 'HCTR11', perfil: 'conservador' })).json();
+    const conservative = await (await post('/api/fiis', { ticker: 'hctr', perfil: 'conservador' })).json();
+    assert.equal(conservative.ticker, 'HCTR11');
+    assert.equal(conservative.ultimoRendimento.percentualValue, '1,62%');
     assert.equal(conservative.perfil, 'conservador');
     assert.equal(conservative.dy.class, 'neutral');
     assert.equal(calls.filter(url => url.includes('/fiis/hctr11/')).length, 1);
